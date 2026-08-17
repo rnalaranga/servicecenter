@@ -1,0 +1,770 @@
+// Golden Auto Detail ERP - Prisma Schema
+// Database: MySQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ============================================================
+// USERS & AUTH
+// ============================================================
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique 
+  email        String   @unique 
+  password     String   
+  fullName     String   
+  role String @default("VIEWER")
+  phone        String?  
+  avatar       String?  
+  isActive     Boolean  @default(true)
+  lastLogin    DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  jobCardsAstech   JobCard[]        @relation("Technician")
+  jobCardsCreated  JobCard[]        @relation("CreatedBy")
+  invoicesCreated  Invoice[]
+  paymentsCreated  CustomerPayment[]
+  purchasesCreated Purchase[]
+  expensesCreated  Expense[]
+  auditLogs        AuditLog[]
+  stockAdjustments StockTransaction[]
+
+  @@map("users")
+}
+
+// ============================================================
+// CUSTOMERS
+// ============================================================
+
+model Customer {
+  id             Int          @id @default(autoincrement())
+  code           String       @unique 
+  name           String       
+  companyName    String?      
+  mobile         String       
+  secondaryMobile String?     
+  email          String?      
+  address        String?      
+  city           String?      
+  nicTaxId       String?      
+  customerType String @default("INDIVIDUAL")
+  creditLimit    Decimal      @default(0) 
+  openingBalance Decimal      @default(0) 
+  notes          String?      
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Relations
+  vehicles    Vehicle[]
+  jobCards    JobCard[]
+  invoices    Invoice[]
+  payments    CustomerPayment[]
+  ledger      CustomerLedger[]
+
+  @@index([name])
+  @@index([mobile])
+  @@map("customers")
+}
+
+// ============================================================
+// VEHICLES
+// ============================================================
+
+model Vehicle {
+  id             Int               @id @default(autoincrement())
+  code           String            @unique 
+  registration   String            @unique 
+  make           String            
+  model          String            
+  variant        String?           
+  year           Int?
+  colour         String?           
+  fuelType String?
+  transmission String?
+  vin            String?           
+  engineNumber   String?           
+  mileage        Int?
+  notes          String?           
+  isActive       Boolean           @default(true)
+  customerId     Int
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  // Relations
+  customer  Customer        @relation(fields: [customerId], references: [id])
+  jobCards  JobCard[]
+  photos    VehiclePhoto[]
+
+  @@index([registration])
+  @@index([vin])
+  @@index([customerId])
+  @@map("vehicles")
+}
+
+model VehiclePhoto {
+  id        Int      @id @default(autoincrement())
+  vehicleId Int
+  url       String   
+  caption   String?  
+  createdAt DateTime @default(now())
+
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
+
+  @@map("vehicle_photos")
+}
+
+// ============================================================
+// SERVICES
+// ============================================================
+
+model ServiceCategory {
+  id       Int       @id @default(autoincrement())
+  name     String    
+  services Service[]
+
+  @@map("service_categories")
+}
+
+model Service {
+  id             Int              @id @default(autoincrement())
+  code           String           @unique 
+  name           String           
+  description    String?          
+  sellingPrice   Decimal          
+  estimatedCost  Decimal          @default(0) 
+  estimatedDuration Int?          // minutes
+  categoryId     Int?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  // Relations
+  category        ServiceCategory?       @relation(fields: [categoryId], references: [id])
+  jobCardServices JobCardService[]
+  packageItems    ServicePackageItem[]
+
+  @@map("services")
+}
+
+model ServicePackage {
+  id          Int                  @id @default(autoincrement())
+  code        String               @unique 
+  name        String               
+  description String?              
+  price       Decimal              
+  isActive    Boolean              @default(true)
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  items       ServicePackageItem[]
+
+  @@map("service_packages")
+}
+
+model ServicePackageItem {
+  id         Int  @id @default(autoincrement())
+  packageId  Int
+  serviceId  Int
+  quantity   Int  @default(1)
+
+  package  ServicePackage @relation(fields: [packageId], references: [id])
+  service  Service        @relation(fields: [serviceId], references: [id])
+
+  @@map("service_package_items")
+}
+
+// ============================================================
+// PRODUCTS & INVENTORY
+// ============================================================
+
+model ProductCategory {
+  id       Int       @id @default(autoincrement())
+  name     String    
+  products Product[]
+
+  @@map("product_categories")
+}
+
+model ProductUnit {
+  id       Int       @id @default(autoincrement())
+  name     String      // Piece, Bottle, Litre, etc.
+  symbol   String      // pcs, btl, L
+  products Product[]
+
+  @@map("product_units")
+}
+
+model Product {
+  id             Int     @id @default(autoincrement())
+  sku            String  @unique 
+  barcode        String? 
+  name           String  
+  description    String? 
+  categoryId     Int?
+  unitId         Int?
+  brand          String? 
+  purchaseCost   Decimal @default(0) 
+  sellingPrice   Decimal 
+  avgCost        Decimal @default(0)   // Weighted average
+  minStock       Decimal @default(0) 
+  reorderLevel   Decimal @default(0) 
+  taxRate        Decimal @default(0) 
+  preferredVendorId Int?
+  imageUrl       String? 
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  category         ProductCategory?   @relation(fields: [categoryId], references: [id])
+  unit             ProductUnit?       @relation(fields: [unitId], references: [id])
+  preferredVendor  Vendor?            @relation(fields: [preferredVendorId], references: [id])
+  stockTransactions StockTransaction[]
+  stockLevels      StockLevel[]
+  jobCardMaterials JobCardMaterial[]
+  purchaseItems    PurchaseItem[]
+  invoiceItems     InvoiceItem[]
+
+  @@index([sku])
+  @@index([barcode])
+  @@index([name])
+  @@map("products")
+}
+
+model Warehouse {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique 
+  name     String  
+  location String? 
+  isActive Boolean @default(true)
+
+  stockLevels       StockLevel[]
+  stockTransactions StockTransaction[]
+  purchases         Purchase[]
+
+  @@map("warehouses")
+}
+
+model StockLevel {
+  id          Int     @id @default(autoincrement())
+  productId   Int
+  warehouseId Int
+  quantity    Decimal @default(0) 
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([productId, warehouseId])
+  @@map("stock_levels")
+}
+
+model StockTransaction {
+  id            Int                  @id @default(autoincrement())
+  txnNumber     String               @unique 
+  productId     Int
+  warehouseId   Int
+  type String
+  quantity      Decimal               // positive = in, negative = out
+  unitCost      Decimal              @default(0) 
+  totalCost     Decimal              @default(0) 
+  refType       String?               // JOB_CARD, PURCHASE, INVOICE, ADJUSTMENT
+  refId         Int?
+  refNumber     String?              
+  notes         String?              
+  createdById   Int?
+  createdAt     DateTime             @default(now())
+
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+  createdBy   User?     @relation(fields: [createdById], references: [id])
+
+  @@index([productId])
+  @@index([warehouseId])
+  @@index([refType, refId])
+  @@map("stock_transactions")
+}
+
+// ============================================================
+// VENDORS
+// ============================================================
+
+model Vendor {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique 
+  name           String   
+  companyName    String?  
+  contactPerson  String?  
+  mobile         String?  
+  email          String?  
+  address        String?  
+  taxId          String?  
+  openingBalance Decimal  @default(0) 
+  creditTerms    Int?     // days
+  notes          String?  
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  products        Product[]
+  purchases       Purchase[]
+  vendorPayments  VendorPayment[]
+  ledger          VendorLedger[]
+
+  @@index([name])
+  @@map("vendors")
+}
+
+// ============================================================
+// PURCHASES
+// ============================================================
+
+model Purchase {
+  id            Int            @id @default(autoincrement())
+  purchaseNumber String        @unique 
+  vendorId      Int
+  warehouseId   Int?
+  date          DateTime
+  dueDate       DateTime?
+  status String @default("DRAFT")
+  subtotal      Decimal        @default(0) 
+  discountAmount Decimal       @default(0) 
+  taxAmount     Decimal        @default(0) 
+  total         Decimal        @default(0) 
+  amountPaid    Decimal        @default(0) 
+  balance       Decimal        @default(0) 
+  // Job-specific external purchase linkage
+  jobCardId     Int?
+  isExternal    Boolean        @default(false) // external job purchase
+  notes         String?        
+  createdById   Int?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  vendor      Vendor          @relation(fields: [vendorId], references: [id])
+  warehouse   Warehouse?      @relation(fields: [warehouseId], references: [id])
+  jobCard     JobCard?        @relation(fields: [jobCardId], references: [id])
+  createdBy   User?           @relation(fields: [createdById], references: [id])
+  items       PurchaseItem[]
+  payments    VendorPayment[]
+
+  @@index([vendorId])
+  @@index([jobCardId])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id          Int     @id @default(autoincrement())
+  purchaseId  Int
+  productId   Int?
+  description String? 
+  quantity    Decimal 
+  unitCost    Decimal 
+  discount    Decimal @default(0) 
+  taxRate     Decimal @default(0) 
+  taxAmount   Decimal @default(0) 
+  total       Decimal 
+
+  purchase  Purchase @relation(fields: [purchaseId], references: [id])
+  product   Product? @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+model VendorPayment {
+  id            Int           @id @default(autoincrement())
+  paymentNumber String        @unique 
+  vendorId      Int
+  purchaseId    Int?
+  date          DateTime
+  amount        Decimal       
+  method String @default("CASH")
+  reference     String?       
+  notes         String?       
+  createdAt     DateTime      @default(now())
+
+  vendor    Vendor    @relation(fields: [vendorId], references: [id])
+  purchase  Purchase? @relation(fields: [purchaseId], references: [id])
+
+  @@index([vendorId])
+  @@map("vendor_payments")
+}
+
+model VendorLedger {
+  id          Int                   @id @default(autoincrement())
+  vendorId    Int
+  date        DateTime
+  type String
+  refType     String?               
+  refId       Int?
+  refNumber   String?               
+  description String?               
+  debit       Decimal               @default(0)  // We owe vendor
+  credit      Decimal               @default(0)  // Vendor owes us / we paid
+  balance     Decimal               
+  createdAt   DateTime              @default(now())
+
+  vendor  Vendor @relation(fields: [vendorId], references: [id])
+
+  @@index([vendorId])
+  @@map("vendor_ledger")
+}
+
+// ============================================================
+// JOB CARDS
+// ============================================================
+
+model JobCard {
+  id                  Int         @id @default(autoincrement())
+  jobNumber           String      @unique 
+  customerId          Int
+  vehicleId           Int
+  date                DateTime
+  expectedCompletion  DateTime?
+  odometer            Int?
+  complaint           String?     
+  inspectionNotes     String?     
+  internalNotes       String?     
+  customerNotes       String?     
+  technicianId        Int?
+  priority String @default("NORMAL")
+  status String @default("DRAFT")
+  subtotal            Decimal     @default(0) 
+  discountAmount      Decimal     @default(0) 
+  taxAmount           Decimal     @default(0) 
+  total               Decimal     @default(0) 
+  totalCost           Decimal     @default(0)  // for profitability
+  createdById         Int?
+  completedAt         DateTime?
+  deliveredAt         DateTime?
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Relations
+  customer     Customer         @relation(fields: [customerId], references: [id])
+  vehicle      Vehicle          @relation(fields: [vehicleId], references: [id])
+  technician   User?            @relation("Technician", fields: [technicianId], references: [id])
+  createdBy    User?            @relation("CreatedBy", fields: [createdById], references: [id])
+  services     JobCardService[]
+  materials    JobCardMaterial[]
+  purchases    Purchase[]
+  inspections  InspectionItem[]
+  photos       JobCardPhoto[]
+  invoices     InvoiceJobCard[]
+
+  @@index([customerId])
+  @@index([vehicleId])
+  @@index([status])
+  @@map("job_cards")
+}
+
+model JobCardService {
+  id          Int     @id @default(autoincrement())
+  jobCardId   Int
+  serviceId   Int
+  description String? 
+  quantity    Decimal @default(1) 
+  unitPrice   Decimal 
+  discount    Decimal @default(0) 
+  taxRate     Decimal @default(0) 
+  taxAmount   Decimal @default(0) 
+  total       Decimal 
+  estimatedCost Decimal @default(0) 
+  sortOrder   Int     @default(0)
+
+  jobCard  JobCard @relation(fields: [jobCardId], references: [id])
+  service  Service @relation(fields: [serviceId], references: [id])
+
+  @@map("job_card_services")
+}
+
+model JobCardMaterial {
+  id          Int     @id @default(autoincrement())
+  jobCardId   Int
+  productId   Int
+  warehouseId Int?
+  description String? 
+  quantity    Decimal 
+  unitCost    Decimal   // weighted avg at time of issue
+  unitPrice   Decimal   // selling price to customer
+  total       Decimal 
+  issued      Boolean @default(false)
+  issuedAt    DateTime?
+  sortOrder   Int     @default(0)
+
+  jobCard  JobCard @relation(fields: [jobCardId], references: [id])
+  product  Product @relation(fields: [productId], references: [id])
+
+  @@map("job_card_materials")
+}
+
+model InspectionItem {
+  id          Int                 @id @default(autoincrement())
+  jobCardId   Int
+  area        String                // e.g., Front Bumper
+  condition String @default("GOOD")
+  notes       String?             
+  photoUrl    String?             
+
+  jobCard  JobCard @relation(fields: [jobCardId], references: [id])
+
+  @@map("inspection_items")
+}
+
+model JobCardPhoto {
+  id        Int       @id @default(autoincrement())
+  jobCardId Int
+  type String
+  url       String    
+  caption   String?   
+  createdAt DateTime  @default(now())
+
+  jobCard  JobCard @relation(fields: [jobCardId], references: [id])
+
+  @@map("job_card_photos")
+}
+
+// ============================================================
+// INVOICES
+// ============================================================
+
+model Invoice {
+  id            Int           @id @default(autoincrement())
+  invoiceNumber String        @unique 
+  customerId    Int
+  vehicleId     Int?
+  date          DateTime
+  dueDate       DateTime?
+  status String @default("UNPAID")
+  subtotal      Decimal       @default(0) 
+  discountAmount Decimal      @default(0) 
+  taxAmount     Decimal       @default(0) 
+  total         Decimal       @default(0) 
+  amountPaid    Decimal       @default(0) 
+  balance       Decimal       @default(0) 
+  notes         String?       
+  terms         String?       
+  createdById   Int?
+  cancelledAt   DateTime?
+  cancelReason  String?       
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  customer   Customer         @relation(fields: [customerId], references: [id])
+  createdBy  User?            @relation(fields: [createdById], references: [id])
+  items      InvoiceItem[]
+  payments   CustomerPayment[]
+  jobCards   InvoiceJobCard[]
+  ledger     CustomerLedger[]
+
+  @@index([customerId])
+  @@index([status])
+  @@map("invoices")
+}
+
+model InvoiceJobCard {
+  id        Int @id @default(autoincrement())
+  invoiceId Int
+  jobCardId Int
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+  jobCard JobCard @relation(fields: [jobCardId], references: [id])
+
+  @@unique([invoiceId, jobCardId])
+  @@map("invoice_job_cards")
+}
+
+model InvoiceItem {
+  id          Int     @id @default(autoincrement())
+  invoiceId   Int
+  productId   Int?
+  description String  
+  quantity    Decimal 
+  unitPrice   Decimal 
+  discount    Decimal @default(0) 
+  taxRate     Decimal @default(0) 
+  taxAmount   Decimal @default(0) 
+  total       Decimal 
+  sortOrder   Int     @default(0)
+
+  invoice  Invoice  @relation(fields: [invoiceId], references: [id])
+  product  Product? @relation(fields: [productId], references: [id])
+
+  @@map("invoice_items")
+}
+
+// ============================================================
+// PAYMENTS
+// ============================================================
+
+model CustomerPayment {
+  id            Int           @id @default(autoincrement())
+  paymentNumber String        @unique 
+  customerId    Int
+  invoiceId     Int?
+  date          DateTime
+  amount        Decimal       
+  method String @default("CASH")
+  reference     String?       
+  notes         String?       
+  createdById   Int?
+  createdAt     DateTime      @default(now())
+
+  customer   Customer  @relation(fields: [customerId], references: [id])
+  invoice    Invoice?  @relation(fields: [invoiceId], references: [id])
+  createdBy  User?     @relation(fields: [createdById], references: [id])
+  ledger     CustomerLedger[]
+
+  @@index([customerId])
+  @@map("customer_payments")
+}
+
+model CustomerLedger {
+  id          Int                   @id @default(autoincrement())
+  customerId  Int
+  date        DateTime
+  type String
+  invoiceId   Int?
+  paymentId   Int?
+  refType     String?               
+  refId       Int?
+  refNumber   String?               
+  description String?               
+  debit       Decimal               @default(0)  // Customer owes us
+  credit      Decimal               @default(0)  // Customer paid us
+  balance     Decimal               
+  createdAt   DateTime              @default(now())
+
+  customer  Customer         @relation(fields: [customerId], references: [id])
+  invoice   Invoice?         @relation(fields: [invoiceId], references: [id])
+  payment   CustomerPayment? @relation(fields: [paymentId], references: [id])
+
+  @@index([customerId])
+  @@map("customer_ledger")
+}
+
+// ============================================================
+// EXPENSES
+// ============================================================
+
+model ExpenseCategory {
+  id       Int       @id @default(autoincrement())
+  name     String    
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id             Int           @id @default(autoincrement())
+  expenseNumber  String        @unique 
+  date           DateTime
+  categoryId     Int?
+  description    String        
+  amount         Decimal       
+  method String @default("CASH")
+  payee          String?       
+  reference      String?       
+  attachmentUrl  String?       
+  status String @default("PAID")
+  notes          String?       
+  createdById    Int?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  category   ExpenseCategory? @relation(fields: [categoryId], references: [id])
+  createdBy  User?            @relation(fields: [createdById], references: [id])
+
+  @@map("expenses")
+}
+
+// ============================================================
+// SYSTEM
+// ============================================================
+
+model Setting {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique 
+  value     String   
+  group     String   
+  updatedAt DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String     // CREATE, UPDATE, DELETE, CANCEL, APPROVE
+  module     String     // INVOICE, JOB_CARD, etc.
+  recordId   Int?
+  recordRef  String?  
+  oldValue   String?
+  newValue   String?
+  ipAddress  String?  
+  userAgent  String?  
+  createdAt  DateTime @default(now())
+
+  user  User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([module, recordId])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  type      String   
+  title     String   
+  message   String   
+  refType   String?  
+  refId     Int?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
