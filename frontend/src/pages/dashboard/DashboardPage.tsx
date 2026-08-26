@@ -2,61 +2,16 @@ import {
   TrendingUp, TrendingDown, Car, ClipboardList, Users, Package,
   DollarSign, AlertTriangle, Plus, ChevronRight, Circle,
   CheckCircle, Clock, Wrench, ArrowUpRight, ArrowDownRight,
-  BarChart2
+  BarChart2, Loader2
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts'
-
-// Mock data
-const salesData = [
-  { day: 'Mon', sales: 125000, cost: 68000 },
-  { day: 'Tue', sales: 98000, cost: 52000 },
-  { day: 'Wed', sales: 185000, cost: 96000 },
-  { day: 'Thu', sales: 142000, cost: 75000 },
-  { day: 'Fri', sales: 210000, cost: 108000 },
-  { day: 'Sat', sales: 278000, cost: 138000 },
-  { day: 'Sun', sales: 95000, cost: 48000 },
-]
-
-const jobStatusData = [
-  { name: 'In Progress', value: 8, color: '#D97706' },
-  { name: 'Completed', value: 14, color: '#16A34A' },
-  { name: 'Waiting Parts', value: 3, color: '#DC2626' },
-  { name: 'Inspection', value: 5, color: '#7C3AED' },
-]
-
-const serviceRevenueData = [
-  { name: 'Full Detailing', revenue: 125000 },
-  { name: 'Ceramic Coating', revenue: 210000 },
-  { name: 'Paint Correction', revenue: 89000 },
-  { name: 'Interior Clean', revenue: 56000 },
-  { name: 'Polishing', revenue: 42000 },
-  { name: 'Engine Bay', revenue: 31000 },
-]
-
-const recentJobs = [
-  { id: 'JC-000128', customer: 'Kasun Perera', vehicle: 'Toyota Corolla · CAB-1234', service: 'Full Detailing + Ceramic', status: 'IN_PROGRESS', priority: 'HIGH', time: '2h ago' },
-  { id: 'JC-000127', customer: 'Nimal Silva', vehicle: 'BMW X5 · CAA-5678', service: 'Paint Correction', status: 'APPROVED', priority: 'NORMAL', time: '3h ago' },
-  { id: 'JC-000126', customer: 'Amara Dissanayake', vehicle: 'Honda Vezel · CBB-9012', service: 'Interior Detailing', status: 'COMPLETED', priority: 'LOW', time: '5h ago' },
-  { id: 'JC-000125', customer: 'Ruwan Fernando', vehicle: 'Audi A4 · CAC-3456', service: 'Graphene Coating', status: 'WAITING_FOR_PARTS', priority: 'URGENT', time: '1d ago' },
-  { id: 'JC-000124', customer: 'Dilini Jayasinghe', vehicle: 'Suzuki Swift · CBD-7890', service: 'Full Detailing', status: 'DELIVERED', priority: 'NORMAL', time: '1d ago' },
-]
-
-const recentInvoices = [
-  { id: 'INV-000045', customer: 'Kasun Perera', amount: 58000, status: 'UNPAID', date: 'Today' },
-  { id: 'INV-000044', customer: 'Nimal Silva', amount: 125000, status: 'PAID', date: 'Today' },
-  { id: 'INV-000043', customer: 'Amara Dissanayake', amount: 42000, status: 'PARTIALLY_PAID', date: 'Yesterday' },
-  { id: 'INV-000042', customer: 'Ruwan Fernando', amount: 210000, status: 'UNPAID', date: 'Yesterday' },
-]
-
-const lowStockItems = [
-  { name: 'Ceramic Coating Pro', stock: 2, unit: 'btl', min: 5 },
-  { name: 'Microfiber Cloth XL', stock: 8, unit: 'pcs', min: 20 },
-  { name: 'Interior Cleaner 500ml', stock: 3, unit: 'btl', min: 10 },
-]
+import { useQuery } from '@tanstack/react-query'
+import { getDashboardData } from '../../api/dashboard'
+import { format } from 'date-fns'
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, string> = {
@@ -87,10 +42,42 @@ function formatLKR(n: number) {
   return 'LKR ' + n.toLocaleString('en-LK')
 }
 
-const CHART_COLORS = ['#D4AF37', '#B8860B', '#F5C542', '#A0892A']
-
 export default function DashboardPage() {
   const navigate = useNavigate()
+
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['dashboardData'],
+    queryFn: getDashboardData,
+    refetchInterval: 5000
+  })
+
+  if (isLoading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+        <Loader2 className="animate-spin" size={32} color="var(--text-muted)" />
+      </div>
+    )
+  }
+
+  if (isError || !data) {
+    return (
+      <div className="page-header">
+        <h1 className="page-title text-danger">Failed to load dashboard data</h1>
+      </div>
+    )
+  }
+
+  const {
+    kpis,
+    salesData,
+    jobStatusData,
+    serviceRevenueData,
+    recentJobs,
+    recentInvoices,
+    lowStockItems
+  } = data
+
+  const todayStr = format(new Date(), 'EEEE, d MMMM yyyy')
 
   return (
     <div>
@@ -98,7 +85,7 @@ export default function DashboardPage() {
       <div className="page-header">
         <div>
           <h1 className="page-title">Dashboard</h1>
-          <p className="page-subtitle">Sunday, 17 August 2025 · Good morning, Admin</p>
+          <p className="page-subtitle">{todayStr} · Good morning, Admin</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary btn-sm" onClick={() => navigate('/job-cards/new')}>
@@ -114,40 +101,68 @@ export default function DashboardPage() {
       <div className="grid-4" style={{ marginBottom: '20px' }}>
         <KpiCard
           label="Today's Sales"
-          value="LKR 278,000"
-          change="+18%"
-          positive
+          value={formatLKR(kpis.todaySales)}
+          change="Real-time"
+          positive={kpis.todaySales > 0}
+          neutral={kpis.todaySales === 0}
           icon={<TrendingUp size={22} />}
           accent
         />
         <KpiCard
           label="Open Job Cards"
-          value="16"
-          change="5 urgent"
+          value={kpis.openJobCardsCount.toString()}
+          change="In shop"
           neutral
           icon={<ClipboardList size={22} />}
         />
         <KpiCard
           label="Customer Outstanding"
-          value="LKR 1,240,000"
-          change="12 invoices"
+          value={formatLKR(kpis.customerOutstanding)}
+          change="To be collected"
           neutral
           icon={<DollarSign size={22} />}
         />
         <KpiCard
           label="Vehicles In Shop"
-          value="11"
-          change="3 ready for pickup"
+          value={kpis.vehiclesInShopCount.toString()}
+          change="Current"
           neutral
           icon={<Car size={22} />}
         />
       </div>
 
       <div className="grid-4" style={{ marginBottom: '20px' }}>
-        <KpiCard label="Today's Payments" value="LKR 190,000" change="+5%" positive icon={<TrendingUp size={22} />} />
-        <KpiCard label="Completed Today" value="4 Jobs" change="2 delivered" neutral icon={<CheckCircle size={22} />} />
-        <KpiCard label="Vendor Outstanding" value="LKR 380,000" change="6 vendors" neutral icon={<Package size={22} />} />
-        <KpiCard label="Low Stock Items" value="3 Items" change="Reorder needed" negative icon={<AlertTriangle size={22} />} />
+        <KpiCard 
+          label="Today's Payments" 
+          value={formatLKR(kpis.todaysPaymentsTotal)} 
+          change="Received today" 
+          positive={kpis.todaysPaymentsTotal > 0} 
+          neutral={kpis.todaysPaymentsTotal === 0}
+          icon={<TrendingUp size={22} />} 
+        />
+        <KpiCard 
+          label="Completed Today" 
+          value={`${kpis.completedTodayCount} Jobs`} 
+          change="Finished" 
+          positive={kpis.completedTodayCount > 0} 
+          neutral={kpis.completedTodayCount === 0}
+          icon={<CheckCircle size={22} />} 
+        />
+        <KpiCard 
+          label="Vendor Outstanding" 
+          value={formatLKR(kpis.vendorOutstanding)} 
+          change="To pay" 
+          neutral 
+          icon={<Package size={22} />} 
+        />
+        <KpiCard 
+          label="Low Stock Items" 
+          value={`${kpis.lowStockCount} Items`} 
+          change="Reorder needed" 
+          negative={kpis.lowStockCount > 0} 
+          neutral={kpis.lowStockCount === 0}
+          icon={<AlertTriangle size={22} />} 
+        />
       </div>
 
       {/* Charts Row */}
@@ -196,37 +211,45 @@ export default function DashboardPage() {
             <span className="card-title">Job Card Status</span>
           </div>
           <div className="card-body" style={{ paddingTop: 12 }}>
-            <ResponsiveContainer width="100%" height={160}>
-              <PieChart>
-                <Pie
-                  data={jobStatusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={45}
-                  outerRadius={70}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {jobStatusData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
+            {jobStatusData.length > 0 ? (
+              <>
+                <ResponsiveContainer width="100%" height={160}>
+                  <PieChart>
+                    <Pie
+                      data={jobStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={70}
+                      paddingAngle={3}
+                      dataKey="value"
+                    >
+                      {jobStatusData.map((entry, index) => (
+                        <Cell key={index} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
+                  {jobStatusData.map(item => (
+                    <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                        <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.name}</span>
+                      </div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{item.value}</span>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-              {jobStatusData.map(item => (
-                <div key={item.name} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
-                    <div style={{ width: 8, height: 8, borderRadius: 2, background: item.color, flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{item.name}</span>
-                  </div>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{item.value}</span>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%', color: 'var(--text-muted)', fontSize: 13 }}>
+                No active jobs
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -239,18 +262,24 @@ export default function DashboardPage() {
             <span className="card-title">Revenue by Service</span>
           </div>
           <div className="card-body" style={{ paddingTop: 12 }}>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={serviceRevenueData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-                <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickFormatter={v => `${(v/1000).toFixed(0)}K`} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={80} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`LKR ${v.toLocaleString()}`, 'Revenue']}
-                />
-                <Bar dataKey="revenue" fill="#D4AF37" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {serviceRevenueData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={serviceRevenueData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                  <XAxis type="number" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} tickFormatter={v => `${(v/1000).toFixed(0)}K`} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={80} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: number) => [`LKR ${v.toLocaleString()}`, 'Revenue']}
+                  />
+                  <Bar dataKey="revenue" fill="#D4AF37" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '220px', color: 'var(--text-muted)', fontSize: 13 }}>
+                No revenue data
+              </div>
+            )}
           </div>
         </div>
 
@@ -275,7 +304,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {recentJobs.map(job => (
+                {recentJobs.length > 0 ? recentJobs.map(job => (
                   <tr key={job.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/job-cards/${job.id}`)}>
                     <td>
                       <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)', fontFamily: 'monospace', fontSize: 12 }}>
@@ -293,7 +322,13 @@ export default function DashboardPage() {
                     <td><StatusBadge status={job.status} /></td>
                     <td style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{job.time}</td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                      No recent job cards
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -321,7 +356,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {recentInvoices.map(inv => (
+                {recentInvoices.length > 0 ? recentInvoices.map(inv => (
                   <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>
                     <td>
                       <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)', fontFamily: 'monospace', fontSize: 12 }}>
@@ -335,7 +370,13 @@ export default function DashboardPage() {
                     </td>
                     <td><StatusBadge status={inv.status} /></td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                      No recent invoices
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -398,10 +439,10 @@ export default function DashboardPage() {
         <div className="card">
           <div className="card-header">
             <span className="card-title">Low Stock Alerts</span>
-            <span className="badge badge-urgent">{lowStockItems.length}</span>
+            <span className="badge badge-urgent">{kpis.lowStockCount}</span>
           </div>
           <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {lowStockItems.map(item => (
+            {lowStockItems.length > 0 ? lowStockItems.map(item => (
               <div key={item.name} style={{
                 padding: '10px 12px',
                 borderRadius: '8px',
@@ -442,7 +483,11 @@ export default function DashboardPage() {
                   }} />
                 </div>
               </div>
-            ))}
+            )) : (
+              <div style={{ textAlign: 'center', padding: '10px', color: 'var(--text-muted)', fontSize: 13 }}>
+                All stock levels are optimal
+              </div>
+            )}
             <button className="btn btn-secondary btn-sm" onClick={() => navigate('/stock')} style={{ width: '100%' }}>
               View All Stock
             </button>

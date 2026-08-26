@@ -20,6 +20,7 @@ import expenseRoutes from './routes/expense.routes';
 import reportRoutes from './routes/report.routes';
 import userRoutes from './routes/user.routes';
 import systemRoutes from './routes/system.routes';
+import dashboardRoutes from './routes/dashboard.routes';
 
 dotenv.config();
 
@@ -56,6 +57,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/system', systemRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

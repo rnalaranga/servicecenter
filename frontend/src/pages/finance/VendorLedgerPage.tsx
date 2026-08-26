@@ -13,8 +13,8 @@ export default function VendorLedgerPage() {
     queryFn: getVendorBalances 
   })
 
-  // Vendors with a balance > 0 (we owe them money)
-  const creditors = balances.filter(b => b.balance > 0)
+  // Show all vendors instead of filtering only > 0
+  const creditors = balances
   
   const filtered = creditors.filter(b => {
     const term = search.toLowerCase()
