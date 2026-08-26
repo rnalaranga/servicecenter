@@ -75,13 +75,13 @@ export const getInventoryReports = async (req: Request, res: Response) => {
 
       if (currentStock === 0) {
         outOfStockCount++;
-      } else if (currentStock <= p.reorderLevel) {
+      } else if (currentStock <= Number(p.reorderLevel)) {
         lowStockCount++;
       }
 
       return {
         id: p.id,
-        code: p.code,
+        code: p.sku,
         sku: p.sku,
         name: p.name,
         category: p.category?.name || 'Uncategorized',

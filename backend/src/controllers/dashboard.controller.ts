@@ -54,7 +54,7 @@ export const getDashboardData = async (req: Request, res: Response) => {
       include: { stockLevels: true }
     });
     
-    const lowStockItems = [];
+    const lowStockItems: { name: string; stock: number; unit: string; min: number }[] = [];
     products.forEach(p => {
       const currentStock = p.stockLevels.reduce((sum, sl) => sum + Number(sl.quantity), 0);
       if (currentStock <= Number(p.reorderLevel)) {
