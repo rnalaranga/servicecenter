@@ -9,7 +9,7 @@ import { format } from 'date-fns'
 export default function ExpenseFormPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { addToast } = useToast()
+  const { success, error } = useToast()
 
   const [formData, setFormData] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),

@@ -12,8 +12,8 @@ export interface Customer {
   city: string | null;
   nicTaxId: string | null;
   customerType: 'INDIVIDUAL' | 'BUSINESS';
-  creditLimit: string | number;
-  openingBalance: string | number;
+  creditLimit: number;
+  openingBalance: number;
   notes: string | null;
   isActive: boolean;
   
@@ -22,6 +22,8 @@ export interface Customer {
   outstanding?: number;
   totalSales?: number;
   totalPaid?: number;
+  lastVisit?: string;
+  createdAt?: string;
 }
 
 export const getCustomers = async (): Promise<Customer[]> => {

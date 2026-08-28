@@ -14,6 +14,7 @@ export interface CustomerLedgerEntry {
   date: string;
   type: string;
   refType?: string | null;
+  refNumber?: string | null;
   description?: string | null;
   debit: number | string;
   credit: number | string;

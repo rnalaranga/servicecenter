@@ -33,8 +33,6 @@ export interface Purchase {
   total: number | string;
   amountPaid: number | string;
   balance: number | string;
-  jobCardId?: number | null;
-  isExternal: boolean;
   notes?: string | null;
   createdAt: string;
 

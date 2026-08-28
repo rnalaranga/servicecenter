@@ -18,11 +18,13 @@ export interface Product {
   brand: string | null;
   categoryId: number | null;
   unitId: number | null;
-  purchaseCost: number;
-  sellingPrice: number;
-  minStock: number;
+  purchaseCost: number | string;
+  sellingPrice: number | string;
+  minStock: number | string;
   isActive: boolean;
   currentStock?: number; // Fetched from stockLevels
+  avgCost?: number | string;
+  reorderLevel?: number | string;
   category?: ProductCategory;
   unit?: ProductUnit;
 }

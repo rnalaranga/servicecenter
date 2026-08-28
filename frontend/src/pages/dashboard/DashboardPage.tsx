@@ -196,7 +196,7 @@ export default function DashboardPage() {
                 <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}K`} />
                 <Tooltip
                   contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`LKR ${v.toLocaleString()}`, '']}
+                      formatter={(v: any) => [`LKR ${Number(v).toLocaleString()}`, '']}
                 />
                 <Area type="monotone" dataKey="sales" stroke="#D4AF37" strokeWidth={2} fill="url(#salesGrad)" />
                 <Area type="monotone" dataKey="cost" stroke="var(--border)" strokeWidth={1.5} fill="transparent" strokeDasharray="4 2" />
@@ -270,7 +270,7 @@ export default function DashboardPage() {
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={80} axisLine={false} tickLine={false} />
                   <Tooltip
                     contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                    formatter={(v: number) => [`LKR ${v.toLocaleString()}`, 'Revenue']}
+                    formatter={(v: any) => [`LKR ${Number(v).toLocaleString()}`, 'Revenue']}
                   />
                   <Bar dataKey="revenue" fill="#D4AF37" radius={[0, 4, 4, 0]} />
                 </BarChart>

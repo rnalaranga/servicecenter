@@ -224,8 +224,8 @@ export default function CustomerProfilePage() {
                 {customer.email && <InfoRow icon={<Mail size={13} />} label="Email" value={customer.email} />}
                 {customer.address && <InfoRow icon={<MapPin size={13} />} label="Address" value={`${customer.address}, ${customer.city}`} />}
                 {customer.nicTaxId && <InfoRow icon={<Shield size={13} />} label="NIC / Tax ID" value={customer.nicTaxId} />}
-                <InfoRow icon={<Calendar size={13} />} label="Last Visit" value={customer.lastVisit} />
-                <InfoRow icon={<Calendar size={13} />} label="Member Since" value={customer.createdAt} />
+                <InfoRow icon={<Calendar size={13} />} label="Last Visit" value={customer.lastVisit || 'N/A'} />
+                <InfoRow icon={<Calendar size={13} />} label="Member Since" value={customer.createdAt || 'N/A'} />
               </div>
 
               {customer.notes && (
@@ -246,27 +246,27 @@ export default function CustomerProfilePage() {
               <span className="card-title">Financial Summary</span>
             </div>
             <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <FinRow label="Total Sales" value={fmtLKR(customer.totalSales)} />
-              <FinRow label="Total Paid" value={fmtLKR(customer.totalPaid)} positive />
+              <FinRow label="Total Sales" value={fmtLKR(customer.totalSales || 0)} />
+              <FinRow label="Total Paid" value={fmtLKR(customer.totalPaid || 0)} positive />
               <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
               <FinRow
                 label="Outstanding Balance"
-                value={customer.outstanding > 0 ? fmtLKR(customer.outstanding) : '—'}
-                danger={customer.outstanding > 0}
+                value={(customer.outstanding || 0) > 0 ? fmtLKR(customer.outstanding || 0) : '—'}
+                danger={(customer.outstanding || 0) > 0}
                 bold
               />
-              <FinRow label="Credit Limit" value={fmtLKR(customer.creditLimit)} />
-              {customer.creditLimit > 0 && customer.outstanding > 0 && (
+              <FinRow label="Credit Limit" value={fmtLKR(Number(customer.creditLimit) || 0)} />
+              {(Number(customer.creditLimit) || 0) > 0 && (customer.outstanding || 0) > 0 && (
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
                     <span>Credit Used</span>
-                    <span>{Math.round((customer.outstanding / customer.creditLimit) * 100)}%</span>
+                    <span>{Math.round(((customer.outstanding || 0) / (Number(customer.creditLimit) || 1)) * 100)}%</span>
                   </div>
                   <div style={{ height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
-                      width: `${Math.min((customer.outstanding / customer.creditLimit) * 100, 100)}%`,
-                      background: customer.outstanding / customer.creditLimit > 0.8 ? 'var(--color-danger)' : 'var(--color-gold-primary)',
+                      width: `${Math.min(((customer.outstanding || 0) / (Number(customer.creditLimit) || 1)) * 100, 100)}%`,
+                      background: (customer.outstanding || 0) / (Number(customer.creditLimit) || 1) > 0.8 ? 'var(--color-danger)' : 'var(--color-gold-primary)',
                       borderRadius: 3, transition: 'width 0.4s',
                     }} />
                   </div>
@@ -612,10 +612,10 @@ export default function CustomerProfilePage() {
                       {fmtLKR(ledger.reduce((s, l) => s + l.credit, 0))}
                     </div>
                   </div>
-                  <div className="card" style={{ padding: '12px 16px', borderLeft: `3px solid ${customer.outstanding > 0 ? 'var(--color-danger)' : 'var(--color-success)'}` }}>
+                  <div className="card" style={{ padding: '12px 16px', borderLeft: `3px solid ${(customer.outstanding || 0) > 0 ? 'var(--color-danger)' : 'var(--color-success)'}` }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Current Balance</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: customer.outstanding > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                      {customer.outstanding > 0 ? fmtLKR(customer.outstanding) : 'Nil'}
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: (customer.outstanding || 0) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                      {(customer.outstanding || 0) > 0 ? fmtLKR(customer.outstanding || 0) : 'Nil'}
                     </div>
                   </div>
                 </div>
