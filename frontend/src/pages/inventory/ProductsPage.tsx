@@ -41,7 +41,7 @@ export default function ProductsPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const lowStockCount = products.filter(p => (p.currentStock || 0) <= p.minStock).length
+  const lowStockCount = products.filter(p => (p.currentStock || 0) <= Number(p.minStock)).length
   const totalValue = products.reduce((sum, p) => sum + (Number(p.purchaseCost) * (p.currentStock || 0)), 0)
 
   return (
@@ -176,10 +176,10 @@ export default function ProductsPage() {
                 </td>
                 <td style={{ textAlign: 'right' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
-                    <span style={{ fontWeight: 700, fontSize: 14, color: (p.currentStock || 0) <= p.minStock ? 'var(--color-danger)' : 'var(--text)' }}>
+                    <span style={{ fontWeight: 700, fontSize: 14, color: (p.currentStock || 0) <= Number(p.minStock) ? 'var(--color-danger)' : 'var(--text)' }}>
                       {p.currentStock} {p.unit?.symbol}
                     </span>
-                    {(p.currentStock || 0) <= p.minStock && (
+                    {(p.currentStock || 0) <= Number(p.minStock) && (
                       <span style={{ fontSize: 10, color: 'var(--color-danger)', fontWeight: 600 }}>LOW STOCK</span>
                     )}
                   </div>

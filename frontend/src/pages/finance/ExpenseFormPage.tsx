@@ -31,11 +31,11 @@ export default function ExpenseFormPage() {
     mutationFn: createExpense,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] })
-      addToast('Expense recorded successfully', 'success')
+      success('Expense recorded successfully')
       navigate('/expenses')
     },
     onError: (error: any) => {
-      addToast(error.response?.data?.error || 'Failed to record expense', 'error')
+      error(error.response?.data?.error || 'Failed to record expense')
     }
   })
 
@@ -46,14 +46,14 @@ export default function ExpenseFormPage() {
       setFormData({ ...formData, categoryId: String(data.id) })
       setIsAddingCategory(false)
       setNewCategoryName('')
-      addToast('Category added', 'success')
+      success('Category added')
     }
   })
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.description || !formData.amount) {
-      addToast('Please fill all required fields', 'error')
+      error('Please fill all required fields')
       return
     }
 

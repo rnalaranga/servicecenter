@@ -38,7 +38,7 @@ export default function VehiclesPage() {
         v.registration.toLowerCase().includes(q) ||
         v.make.toLowerCase().includes(q) ||
         v.model.toLowerCase().includes(q) ||
-        v.customerName.toLowerCase().includes(q)
+        (v.customerName || "").toLowerCase().includes(q)
       const matchMake = makeFilter === 'ALL' || v.make === makeFilter
       const matchStatus =
         statusFilter === 'ALL' ||

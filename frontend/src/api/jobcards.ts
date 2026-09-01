@@ -59,6 +59,8 @@ export interface JobCard {
   customer?: Customer;
   vehicle?: Vehicle;
   services?: JobCardService[];
+  invoices?: any[];
+  purchases?: any[];
 }
 
 export const getJobCards = async (vehicleId?: string): Promise<JobCard[]> => {

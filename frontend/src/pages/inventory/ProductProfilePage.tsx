@@ -36,7 +36,7 @@ export default function ProductProfilePage() {
     )
   }
 
-  const isLowStock = (product.currentStock || 0) <= product.minStock
+  const isLowStock = (product.currentStock || 0) <= Number(product.minStock)
 
   return (
     <div>
@@ -87,19 +87,19 @@ export default function ProductProfilePage() {
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: 4 }}>Selling Price</div>
                 <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: 'monospace' }}>
-                  {fmtLKR(product.sellingPrice)}
+                  {fmtLKR(Number(product.sellingPrice))}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: 4 }}>Cost Price</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-subtle)', fontFamily: 'monospace', marginTop: 3 }}>
-                  {fmtLKR(product.purchaseCost)}
+                  {fmtLKR(Number(product.purchaseCost))}
                 </div>
               </div>
               <div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600, marginBottom: 4 }}>Margin</div>
                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--color-success)', fontFamily: 'monospace', marginTop: 3 }}>
-                  {product.sellingPrice > 0 ? `${(((product.sellingPrice - product.purchaseCost) / product.sellingPrice) * 100).toFixed(1)}%` : '0%'}
+                  {Number(product.sellingPrice) > 0 ? `${(((Number(product.sellingPrice) - Number(product.purchaseCost)) / Number(product.sellingPrice)) * 100).toFixed(1)}%` : '0%'}
                 </div>
               </div>
             </div>
