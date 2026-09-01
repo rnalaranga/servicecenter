@@ -84,6 +84,7 @@ const navGroups: NavGroup[] = [
       { label: 'Users & Roles', href: '/users', icon: Shield },
       { label: 'Audit Logs', href: '/audit-logs', icon: FileText },
       { label: 'Settings', href: '/settings', icon: Settings },
+      { label: 'Categories', href: '/categories', icon: Layers },
     ]
   }
 ]

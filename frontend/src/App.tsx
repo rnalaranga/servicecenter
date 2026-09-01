@@ -49,6 +49,7 @@ import FinancialReportsPage from '@/pages/reports/FinancialReportsPage'
 import UsersPage from '@/pages/system/UsersPage'
 import AuditLogsPage from '@/pages/system/AuditLogsPage'
 import SettingsPage from '@/pages/system/SettingsPage'
+import CategoriesSettingsPage from '@/pages/system/CategoriesSettingsPage'
 import PlaceholderPage from '@/pages/PlaceholderPage'
 
 const queryClient = new QueryClient({
@@ -151,6 +152,7 @@ function AppRoutes() {
         <Route path="users" element={<UsersPage />} />
         <Route path="audit-logs" element={<AuditLogsPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="categories" element={<CategoriesSettingsPage />} />
         <Route path="profile" element={<PlaceholderPage title="My Profile" />} />
 
         {/* 404 */}

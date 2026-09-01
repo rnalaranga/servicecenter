@@ -77,3 +77,39 @@ export const getServiceCategories = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to fetch categories' });
   }
 };
+
+export const createServiceCategory = async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Name is required' });
+    const category = await prisma.serviceCategory.create({ data: { name } });
+    res.json(category);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to create category' });
+  }
+};
+
+export const updateServiceCategory = async (req: Request, res: Response) => {
+  try {
+    const { name } = req.body;
+    const category = await prisma.serviceCategory.update({
+      where: { id: Number(req.params.id) },
+      data: { name }
+    });
+    res.json(category);
+  } catch (error: any) {
+    res.status(500).json({ error: 'Failed to update category' });
+  }
+};
+
+export const deleteServiceCategory = async (req: Request, res: Response) => {
+  try {
+    await prisma.serviceCategory.delete({ where: { id: Number(req.params.id) } });
+    res.json({ success: true });
+  } catch (error: any) {
+    if (error.code === 'P2003') {
+      return res.status(400).json({ error: 'Cannot delete category in use' });
+    }
+    res.status(500).json({ error: 'Failed to delete category' });
+  }
+};

@@ -42,3 +42,17 @@ export const getServiceCategories = async (): Promise<ServiceCategory[]> => {
   const { data } = await api.get('/services/categories');
   return data;
 };
+
+export const createServiceCategory = async (data: { name: string }) => {
+  const res = await api.post('/services/categories', data);
+  return res.data;
+};
+
+export const updateServiceCategory = async (id: number, data: { name: string }) => {
+  const res = await api.put(`/services/categories/${id}`, data);
+  return res.data;
+};
+
+export const deleteServiceCategory = async (id: number) => {
+  await api.delete(`/services/categories/${id}`);
+};

@@ -5,6 +5,9 @@ const router = Router();
 
 // Sub-resources
 router.get('/categories', serviceController.getServiceCategories);
+router.post('/categories', serviceController.createServiceCategory);
+router.put('/categories/:id', serviceController.updateServiceCategory);
+router.delete('/categories/:id', serviceController.deleteServiceCategory);
 
 // Services CRUD
 router.get('/', serviceController.getServices);

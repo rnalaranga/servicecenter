@@ -5,6 +5,9 @@ const router = Router();
 
 // Sub-resources first
 router.get('/categories', productController.getCategories);
+router.post('/categories', productController.createCategory);
+router.put('/categories/:id', productController.updateCategory);
+router.delete('/categories/:id', productController.deleteCategory);
 router.get('/units', productController.getUnits);
 
 // Products CRUD

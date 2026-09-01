@@ -58,3 +58,17 @@ export const getProductUnits = async (): Promise<ProductUnit[]> => {
   const { data } = await api.get('/products/units');
   return data;
 };
+
+export const deleteProductCategory = async (id: number) => {
+  await api.delete(`/products/categories/${id}`);
+};
+
+export const createProductCategory = async (data: { name: string }) => {
+  const res = await api.post('/products/categories', data);
+  return res.data;
+};
+
+export const updateProductCategory = async (id: number, data: { name: string }) => {
+  const res = await api.put(`/products/categories/${id}`, data);
+  return res.data;
+};
