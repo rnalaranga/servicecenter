@@ -48,6 +48,7 @@ export default function InvoiceProfilePage() {
   const isPaid = invoice.status === 'PAID'
 
   return (
+    <>
     <div className="no-print" style={{ maxWidth: 900, margin: '0 auto' }}>
       
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
@@ -240,6 +241,8 @@ export default function InvoiceProfilePage() {
 
       {/* Basic print styles */}
       
+    </div>
+
       {/* Print Layout */}
       <div className="print-only">
         <div className="print-header">
@@ -399,6 +402,6 @@ export default function InvoiceProfilePage() {
           }
         }
 `}</style>
-    </div>
+    </>
   )
 }
