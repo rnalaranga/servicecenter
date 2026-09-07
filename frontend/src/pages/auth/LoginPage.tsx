@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Eye, EyeOff, Loader2, Car } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { useQuery } from '@tanstack/react-query'
+import { getSettings } from '@/api/system'
 import { useNavigate } from 'react-router-dom'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -11,6 +13,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false)
   const { login } = useAuth()
   const navigate = useNavigate()
+  const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const { error } = useToast()
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,7 +170,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: 'var(--text-subtle)' }}>
-          © 2025 Golden Auto Detail ERP · All rights reserved
+          © 2025 {settings?.companyName || 'Golden Auto Detail ERP'} · All rights reserved
         </p>
       </div>
     </div>

@@ -116,12 +116,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside className={clsx('sidebar', isOpen && 'open')}>
         {/* Logo */}
-        <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">{companyName.charAt(0).toUpperCase()}</div>
-          <div className="sidebar-logo-text">
-            <span className="sidebar-logo-name">{companyName}</span>
-            <span className="sidebar-logo-sub">ERP System</span>
-          </div>
+        <div className="sidebar-logo" style={{ padding: '16px 20px', minHeight: 64, display: 'flex', alignItems: 'center' }}>
+          {settings?.logoDark ? (
+            <img src={settings.logoDark} alt="Logo" style={{ height: 40, width: '100%', objectFit: 'contain', objectPosition: 'left center' }} />
+          ) : (
+            <>
+              <div className="sidebar-logo-icon">{companyName.charAt(0).toUpperCase()}</div>
+              <div className="sidebar-logo-text">
+                <span className="sidebar-logo-name">{companyName}</span>
+                <span className="sidebar-logo-sub">ERP System</span>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Navigation */}

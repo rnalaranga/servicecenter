@@ -64,13 +64,19 @@ export default function InvoiceProfilePage() {
         <div className="print-header">
           <div className="print-header-left">Invoice</div>
           <div className="print-header-right">
-            <div className="print-logo">
-              <svg width="40" height="12" viewBox="0 0 100 30" style={{ fill: '#fff', verticalAlign: 'middle', marginRight: 8, display: 'inline-block' }}>
-                <path d="M10,20 Q20,10 40,10 L60,10 Q80,10 90,20 L95,30 L5,30 Z" opacity="0.8"/>
-                <circle cx="25" cy="30" r="5" fill="#fff"/>
-                <circle cx="75" cy="30" r="5" fill="#fff"/>
-              </svg>
-              {settings?.companyName || 'AUTO ELEVATE'}
+            <div className="print-logo" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              {settings?.invoiceLogo || settings?.logoDark ? (
+                <img src={settings?.invoiceLogo || settings?.logoDark} alt="Logo" style={{ height: 48, objectFit: 'contain' }} />
+              ) : (
+                <>
+                  <svg width="40" height="12" viewBox="0 0 100 30" style={{ fill: '#fff', verticalAlign: 'middle', marginRight: 8, display: 'inline-block' }}>
+                    <path d="M10,20 Q20,10 40,10 L60,10 Q80,10 90,20 L95,30 L5,30 Z" opacity="0.8"/>
+                    <circle cx="25" cy="30" r="5" fill="#fff"/>
+                    <circle cx="75" cy="30" r="5" fill="#fff"/>
+                  </svg>
+                  {settings?.companyName || 'AUTO ELEVATE'}
+                </>
+              )}
             </div>
             <div className="print-address">{settings?.companyAddress || 'No.4, Thudella, Ja Ela'}</div>
           </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Save, Building2, Banknote, FileText } from 'lucide-react'
+import { Save, Building2, Banknote, FileText, Image } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getSettings, updateSettings } from '@/api/system'
 
@@ -50,13 +50,30 @@ export default function SettingsPage() {
       currency: { value: formData.currency, group: 'FINANCIAL' },
       taxRate: { value: formData.taxRate, group: 'FINANCIAL' },
       invoicePrefix: { value: formData.invoicePrefix, group: 'INVOICE' },
+      
       invoiceTerms: { value: formData.invoiceTerms, group: 'INVOICE' },
+      logoDark: { value: formData.logoDark, group: 'BRANDING' },
+      logoLight: { value: formData.logoLight, group: 'BRANDING' },
+      invoiceLogo: { value: formData.invoiceLogo, group: 'BRANDING' },
+
     }
 
     mutation.mutate(payload)
   }
 
+  
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, fieldName: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData(prev => ({ ...prev, [fieldName]: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  }
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+
     setFormData({ ...formData, [e.target.name]: e.target.value })
   }
 
@@ -104,6 +121,14 @@ export default function SettingsPage() {
               onClick={() => setActiveTab('invoice')}
             >
               <FileText size={18} /> Invoice Settings
+            </button>
+
+            <button 
+              className={`btn btn-ghost ${activeTab === 'logos' ? 'active' : ''}`} 
+              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, background: activeTab === 'logos' ? 'var(--hover)' : 'transparent' }}
+              onClick={() => setActiveTab('logos')}
+            >
+              <Image size={18} /> Logos
             </button>
           </div>
 
@@ -176,6 +201,41 @@ export default function SettingsPage() {
                     <textarea className="form-input" name="invoiceTerms" value={formData.invoiceTerms} onChange={handleChange} rows={4} />
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>This text will be appended to the bottom of all generated invoices.</div>
                   </div>
+                </div>
+              )}
+
+
+              {activeTab === 'logos' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>Branding Logos</h3>
+                  
+                  <div className="form-group">
+                    <label className="form-label">System Logo (Dark / Main)</label>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      {formData.logoDark && <img src={formData.logoDark} alt="Logo Dark" style={{ height: 40, objectFit: 'contain', background: '#000', padding: 8, borderRadius: 4 }} />}
+                      <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'logoDark')} className="form-input" />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Used in dark sidebars or dark backgrounds.</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">System Logo (Light)</label>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      {formData.logoLight && <img src={formData.logoLight} alt="Logo Light" style={{ height: 40, objectFit: 'contain', background: '#f5f5f5', padding: 8, borderRadius: 4 }} />}
+                      <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'logoLight')} className="form-input" />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Used in light backgrounds or print views if invoice logo is not set.</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Invoice / Print Logo (Optional)</label>
+                    <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                      {formData.invoiceLogo && <img src={formData.invoiceLogo} alt="Invoice Logo" style={{ height: 40, objectFit: 'contain', background: '#f5f5f5', padding: 8, borderRadius: 4 }} />}
+                      <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'invoiceLogo')} className="form-input" />
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Specifically for invoices and printed documents. If empty, the Light logo will be used.</div>
+                  </div>
+                  
                 </div>
               )}
 
