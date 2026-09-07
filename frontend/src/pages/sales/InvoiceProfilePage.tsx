@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Printer, CreditCard, CheckCircle2, DollarSign, X } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getInvoiceById, recordPayment } from '@/api/invoices'
+import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/contexts/ToastContext'
 
@@ -19,6 +20,10 @@ export default function InvoiceProfilePage() {
   const [payAmount, setPayAmount] = useState('')
   const [payMethod, setPayMethod] = useState('CASH')
 
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: getSettings
+  })
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoices', id],
     queryFn: () => getInvoiceById(id!)
@@ -73,9 +78,9 @@ export default function InvoiceProfilePage() {
             <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>Date: <strong style={{ color: '#000' }}>{format(parseISO(invoice.date), 'MMMM dd, yyyy')}</strong></div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: '#111' }}>Golden Auto Detail ERP</div>
-            <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>123 Detailing Avenue, Colombo</div>
-            <div style={{ fontSize: 13, color: '#666' }}>Phone: +94 77 123 4567</div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: '#111' }}>{settings?.companyName || 'Golden Auto Detail ERP'}</div>
+            <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{settings?.companyAddress || '123 Detailing Avenue, Colombo'}</div>
+            <div style={{ fontSize: 13, color: '#666' }}>Phone: {settings?.companyPhone || '+94 77 123 4567'}</div>
           </div>
         </div>
 

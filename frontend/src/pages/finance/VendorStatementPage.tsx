@@ -1,6 +1,7 @@
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Printer, Building2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import { getSettings } from '@/api/system'
 import { getVendorStatement } from '@/api/vendor-ledger'
 import { format, parseISO } from 'date-fns'
 
@@ -8,6 +9,10 @@ export default function VendorStatementPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
+  const { data: settings } = useQuery({ 
+    queryKey: ['settings'], 
+    queryFn: getSettings 
+  })
   const { data, isLoading } = useQuery({ 
     queryKey: ['vendor-statement', id], 
     queryFn: () => getVendorStatement(id!) 
@@ -36,9 +41,9 @@ export default function VendorStatementPage() {
           <div>
             <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text)' }}>VENDOR STATEMENT</h1>
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-              Golden Auto Detail<br />
-              123 Main Street, Colombo 03<br />
-              Tel: +94 11 234 5678
+              {settings?.companyName || 'Golden Auto Detail'}<br />
+              {settings?.companyAddress || '123 Main Street, Colombo 03'}<br />
+              Tel: {settings?.companyPhone || '+94 11 234 5678'}
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
