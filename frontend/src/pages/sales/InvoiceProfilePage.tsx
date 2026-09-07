@@ -130,21 +130,7 @@ export default function InvoiceProfilePage() {
           </div>
 
           <div className="print-conditions">
-            <div className="print-conditions-title">OTHER CONDITIONS</div>
-            <ul className="print-conditions-list">
-              <li>
-                <strong>Mandatory Top-Up Treatment</strong><br/>
-                The customer must bring the vehicle back for a free top-up ceramic coating treatment within four (4) months from the invoice date to maintain warranty coverage.
-              </li>
-              <li>
-                <strong>Recommended Cleaning</strong><br/>
-                Graphene ceramic-coated surfaces must be washed only with a <strong>pH-balanced</strong> car shampoo approved or recommended by {settings?.companyName || 'Auto Elevate'}.
-              </li>
-              <li>
-                <strong>Warranty</strong><br/>
-                {settings?.companyName || 'Auto Elevate'} provides 2 years(Based on the selected Package) warranty for the graphene ceramic coating,subject to compliance with the above maintenance requirements.
-              </li>
-            </ul>
+            
             
             <div className="print-signature">
               thank<br/>You
