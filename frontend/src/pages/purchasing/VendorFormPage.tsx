@@ -204,10 +204,14 @@ export default function VendorFormPage() {
               <input 
                 type="number" 
                 className="form-input"
+                step="0.01"
+                placeholder="0.00"
                 value={formData.openingBalance}
                 onChange={e => setFormData({ ...formData, openingBalance: e.target.value })}
-                disabled={isEditing}
               />
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                Initial balance payable to supplier. Updates the opening balance record in supplier ledger.
+              </div>
             </div>
 
             <div className="form-group" style={{ gridColumn: '1 / -1' }}>

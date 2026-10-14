@@ -21,6 +21,9 @@ import reportRoutes from './routes/report.routes';
 import userRoutes from './routes/user.routes';
 import systemRoutes from './routes/system.routes';
 import dashboardRoutes from './routes/dashboard.routes';
+import accountRoutes from './routes/account.routes';
+import journalRoutes from './routes/journal.routes';
+import reminderRoutes from './routes/reminder.routes';
 
 dotenv.config();
 
@@ -58,6 +61,9 @@ app.use('/api/reports', reportRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/journals', journalRoutes);
+app.use('/api/reminders', reminderRoutes);
 
 // 404 Handler
 app.use((req: Request, res: Response) => {

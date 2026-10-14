@@ -7,6 +7,7 @@ router.get('/', jobcardController.getJobCards);
 router.get('/:id', jobcardController.getJobCardById);
 router.post('/', jobcardController.createJobCard);
 router.put('/:id', jobcardController.updateJobCard);
+router.delete('/:id', jobcardController.deleteJobCard);
 
 router.post('/:id/services', jobcardController.addServiceToJobCard);
 router.delete('/:id/services/:serviceId', jobcardController.removeServiceFromJobCard);

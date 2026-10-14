@@ -69,6 +69,8 @@ model User {
   paymentsCreated  CustomerPayment[]
   purchasesCreated Purchase[]
   expensesCreated  Expense[]
+  journalEntriesCreated JournalEntry[]
+  reminderFollowupsCreated ReminderFollowup[]
   auditLogs        AuditLog[]
   stockAdjustments StockTransaction[]
 
@@ -99,11 +101,12 @@ model Customer {
   updatedAt      DateTime     @updatedAt
 
   // Relations
-  vehicles    Vehicle[]
-  jobCards    JobCard[]
-  invoices    Invoice[]
-  payments    CustomerPayment[]
-  ledger      CustomerLedger[]
+  vehicles             Vehicle[]
+  jobCards             JobCard[]
+  invoices             Invoice[]
+  payments             CustomerPayment[]
+  ledger               CustomerLedger[]
+  maintenanceReminders MaintenanceReminder[]
 
   @@index([name])
   @@index([mobile])
@@ -135,9 +138,10 @@ model Vehicle {
   updatedAt      DateTime          @updatedAt
 
   // Relations
-  customer  Customer        @relation(fields: [customerId], references: [id])
-  jobCards  JobCard[]
-  photos    VehiclePhoto[]
+  customer             Customer              @relation(fields: [customerId], references: [id])
+  jobCards             JobCard[]
+  photos               VehiclePhoto[]
+  maintenanceReminders MaintenanceReminder[]
 
   @@index([registration])
   @@index([vin])
@@ -493,8 +497,9 @@ model JobCard {
   materials    JobCardMaterial[]
   purchases    Purchase[]
   inspections  InspectionItem[]
-  photos       JobCardPhoto[]
-  invoices     InvoiceJobCard[]
+  photos               JobCardPhoto[]
+  invoices             InvoiceJobCard[]
+  maintenanceReminders MaintenanceReminder[]
 
   @@index([customerId])
   @@index([vehicleId])
@@ -768,3 +773,104 @@ model Notification {
 
   @@map("notifications")
 }
+
+// ============================================================
+// ACCOUNTING: CHART OF ACCOUNTS & JOURNAL ENTRIES
+// ============================================================
+
+model Account {
+  id          Int           @id @default(autoincrement())
+  code        String        @unique 
+  name        String        
+  type        String        // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  description String?       
+  balance     Decimal       @default(0) 
+  isActive    Boolean       @default(true)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  journalLines JournalLine[]
+
+  @@map("accounts")
+}
+
+model JournalEntry {
+  id          Int           @id @default(autoincrement())
+  entryNumber String        @unique 
+  date        DateTime
+  reference   String?       
+  description String        
+  status      String        @default("POSTED") // POSTED, DRAFT
+  createdById Int?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  createdBy   User?         @relation(fields: [createdById], references: [id])
+  lines       JournalLine[]
+
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id             Int          @id @default(autoincrement())
+  journalEntryId Int
+  accountId      Int
+  description    String?      
+  debit          Decimal      @default(0) 
+  credit         Decimal      @default(0) 
+
+  journalEntry   JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account      @relation(fields: [accountId], references: [id])
+
+  @@map("journal_lines")
+}
+
+// ============================================================
+// MAINTENANCE REMINDERS & FOLLOW-UPS
+// ============================================================
+
+model MaintenanceReminder {
+  id             Int                 @id @default(autoincrement())
+  jobCardId      Int?
+  customerId     Int
+  vehicleId      Int
+  serviceName    String
+  reminderDate   DateTime
+  intervalLabel  String
+  status         String              @default("PENDING") // PENDING, CONTACTED, SCHEDULED, COMPLETED, CANCELLED
+  scheduledDate  DateTime?
+  notes          String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  jobCard        JobCard?            @relation(fields: [jobCardId], references: [id], onDelete: SetNull)
+  customer       Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle             @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  followups      ReminderFollowup[]
+
+  @@index([reminderDate])
+  @@index([status])
+  @@index([customerId])
+  @@index([vehicleId])
+  @@map("maintenance_reminders")
+}
+
+model ReminderFollowup {
+  id            Int                 @id @default(autoincrement())
+  reminderId    Int
+  contactDate   DateTime            @default(now())
+  channel       String              @default("PHONE") // PHONE, WHATSAPP, SMS, IN_PERSON
+  contacted     Boolean             @default(true)
+  response      String              // CONFIRMED_BOOKING, POSTPONED, NO_ANSWER, NOT_INTERESTED, CALL_BACK_LATER
+  scheduledDate DateTime?
+  notes         String?
+  createdById   Int?
+  createdAt     DateTime            @default(now())
+
+  reminder      MaintenanceReminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  createdBy     User?               @relation(fields: [createdById], references: [id])
+
+  @@map("reminder_followups")
+}
+
+

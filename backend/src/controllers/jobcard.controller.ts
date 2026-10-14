@@ -171,3 +171,32 @@ export const removeServiceFromJobCard = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to remove service' });
   }
 };
+
+export const deleteJobCard = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const invCount = await prisma.invoiceJobCard.count({ where: { jobCardId: id } });
+    if (invCount > 0) {
+      return res.status(400).json({
+        error: 'Cannot delete job card because an invoice is linked to it. Please delete the invoice first.'
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.jobCardService.deleteMany({ where: { jobCardId: id } });
+      await tx.jobCardMaterial.deleteMany({ where: { jobCardId: id } });
+      await tx.inspectionItem.deleteMany({ where: { jobCardId: id } });
+      await tx.jobCardPhoto.deleteMany({ where: { jobCardId: id } });
+      await tx.purchase.updateMany({ where: { jobCardId: id }, data: { jobCardId: null } });
+      await tx.maintenanceReminder.updateMany({ where: { jobCardId: id }, data: { jobCardId: null } });
+      await tx.jobCard.delete({ where: { id } });
+    });
+
+    res.json({ message: 'Job card deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete job card' });
+  }
+};
+

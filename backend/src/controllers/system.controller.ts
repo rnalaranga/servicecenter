@@ -141,6 +141,61 @@ export const fixDatabase = async (req: Request, res: Response) => {
             await prisma.setting.create({ data: s });
           }
         }
+
+        // 4. Ensure Default Chart of Accounts exists
+        const accountCount = await prisma.account.count();
+        if (accountCount === 0) {
+          const defaultAccounts = [
+            { code: '1010', name: 'Cash in Hand', type: 'ASSET', description: 'Petty cash and cash at counter' },
+            { code: '1020', name: 'Bank Account - Commercial Bank', type: 'ASSET', description: 'Main business operating account' },
+            { code: '1030', name: 'Bank Account - Sampath Bank', type: 'ASSET', description: 'Secondary business bank account' },
+            { code: '1100', name: 'Accounts Receivable', type: 'ASSET', description: 'Trade debtors / customer balances due' },
+            { code: '1200', name: 'Inventory Asset', type: 'ASSET', description: 'Cost of parts, products, and detailing materials in stock' },
+            { code: '1500', name: 'Equipment & Machinery', type: 'ASSET', description: 'Detailing machines, pressure washers, hoists' },
+            { code: '2010', name: 'Accounts Payable', type: 'LIABILITY', description: 'Trade creditors / supplier balances due' },
+            { code: '2020', name: 'Accrued Expenses', type: 'LIABILITY', description: 'Accrued wages, rent, and utility bills' },
+            { code: '2100', name: 'Short-term Borrowings', type: 'LIABILITY', description: 'Bank overdrafts and short-term debt' },
+            { code: '3010', name: "Owner's Capital", type: 'EQUITY', description: 'Initial and contributed capital' },
+            { code: '3020', name: 'Retained Earnings', type: 'EQUITY', description: 'Accumulated profits from previous periods' },
+            { code: '3030', name: "Owner's Drawings", type: 'EQUITY', description: 'Drawings by business owner' },
+            { code: '4010', name: 'Detailing & Service Revenue', type: 'REVENUE', description: 'Income from detailing, ceramic coating, and repair services' },
+            { code: '4020', name: 'Product Sales Revenue', type: 'REVENUE', description: 'Income from direct sale of car care products & accessories' },
+            { code: '4090', name: 'Other Operating Income', type: 'REVENUE', description: 'Discounts received, interest, and scrap sales' },
+            { code: '5010', name: 'Cost of Goods Sold (COGS)', type: 'EXPENSE', description: 'Cost of materials and parts used on jobs or sold' },
+            { code: '6010', name: 'Salaries & Staff Wages', type: 'EXPENSE', description: 'Technician wages, detailing staff pay' },
+            { code: '6020', name: 'Shop Rent & Rates', type: 'EXPENSE', description: 'Service center workshop lease & local taxes' },
+            { code: '6030', name: 'Electricity & Water Utilities', type: 'EXPENSE', description: 'Power and water expenses for wash bay & facility' },
+            { code: '6040', name: 'Workshop Consumables', type: 'EXPENSE', description: 'Towels, spray bottles, masking tape, pads' },
+            { code: '6050', name: 'Equipment Repairs & Maintenance', type: 'EXPENSE', description: 'Servicing of polishers, compressors, pressure washers' },
+            { code: '6060', name: 'Marketing & Advertising', type: 'EXPENSE', description: 'Social media ads, banners, promotions' },
+            { code: '6090', name: 'Miscellaneous Expenses', type: 'EXPENSE', description: 'Tea, refreshments, courier, incidental expenses' },
+          ];
+
+          for (const acc of defaultAccounts) {
+            await prisma.account.create({ data: acc });
+          }
+          notes.push(`Created ${defaultAccounts.length} standard Chart of Accounts.`);
+        }
+
+        // 5. Ensure Default Expense Categories exist
+        const catCount = await prisma.expenseCategory.count();
+        if (catCount === 0) {
+          const defaultCats = [
+            'Utilities (Electricity / Water)',
+            'Workshop Rent',
+            'Staff Salaries & Overtime',
+            'Detailing Consumables',
+            'Equipment Maintenance',
+            'Marketing & Social Media',
+            'Tea & Refreshments',
+            'Office Supplies',
+            'General & Miscellaneous',
+          ];
+          for (const name of defaultCats) {
+            await prisma.expenseCategory.create({ data: { name } });
+          }
+          notes.push(`Created ${defaultCats.length} default expense categories.`);
+        }
       } catch (postSyncErr: any) {
         console.warn('[Post-sync initialization warning]', postSyncErr);
       }

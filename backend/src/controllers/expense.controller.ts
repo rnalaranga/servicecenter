@@ -94,3 +94,17 @@ export const createExpenseCategory = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to create category' });
   }
 };
+
+export const deleteExpense = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+    await prisma.expense.delete({
+      where: { id }
+    });
+    res.json({ message: 'Expense deleted successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete expense' });
+  }
+};
+

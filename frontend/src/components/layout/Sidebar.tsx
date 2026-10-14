@@ -33,6 +33,7 @@ const navGroups: NavGroup[] = [
     label: 'Workshop',
     items: [
       { label: 'Job Cards', href: '/job-cards', icon: ClipboardList, badge: 5 },
+      { label: 'Maintenance Reminders', href: '/reminders', icon: Bell },
       { label: 'Vehicles', href: '/vehicles', icon: Car },
       { label: 'Services', href: '/services', icon: Wrench },
     ]
@@ -64,6 +65,8 @@ const navGroups: NavGroup[] = [
   {
     label: 'Finance',
     items: [
+      { label: 'Chart of Accounts', href: '/chart-of-accounts', icon: Layers },
+      { label: 'Journal Entries', href: '/journal-entries', icon: FileText },
       { label: 'Customer Ledger', href: '/customer-ledger', icon: BookOpen },
       { label: 'Vendor Ledger', href: '/vendor-ledger', icon: BookOpen },
       { label: 'Expenses', href: '/expenses', icon: DollarSign },

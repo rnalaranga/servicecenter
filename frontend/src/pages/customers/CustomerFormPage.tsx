@@ -358,12 +358,10 @@ export default function CustomerFormPage() {
                           placeholder="0"
                           value={form.openingBalance} onChange={e => set('openingBalance', e.target.value)}
                           style={{ paddingLeft: 30, ...(hasError('openingBalance') ? { borderColor: 'var(--color-danger)' } : {}) }}
-                          disabled={isEdit}
                         />
                       </div>
                       {errors.openingBalance && <span className="form-error"><AlertCircle size={11} /> {errors.openingBalance}</span>}
-                      {isEdit && <span className="form-hint">Opening balance cannot be changed after account creation</span>}
-                      {!isEdit && <span className="form-hint">Balance brought forward from previous system</span>}
+                      <span className="form-hint">Initial balance receivable from customer. Synchronizes with customer ledger.</span>
                     </div>
                   </div>
 

@@ -97,3 +97,9 @@ export const getServices = async (): Promise<Service[]> => {
   const { data } = await api.get('/services');
   return data;
 };
+
+export const deleteJobCard = async (id: string | number): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/job-cards/${id}`);
+  return data;
+};
+

@@ -10,61 +10,14 @@ import { useQuery } from '@tanstack/react-query'
 import { getCustomerById } from '@/api/customers'
 import { getVehiclesByCustomerId } from '@/api/vehicles'
 
-// ── Mock vehicle data ─────────────────────────────────────────────────────────
-const mockVehicles: Record<number, any[]> = {
-  1: [
-    { id: 1, code: 'VEH-000001', registration: 'CAB-1234', make: 'Toyota', model: 'Corolla', variant: '1.8 Altis', year: 2019, colour: 'Silver', fuelType: 'PETROL', transmission: 'AUTOMATIC', mileage: 68500, isActive: true, jobCount: 8, lastService: '2025-08-17' },
-    { id: 2, code: 'VEH-000002', registration: 'CAA-5678', make: 'BMW', model: 'X5', variant: 'xDrive 30d', year: 2021, colour: 'Black', fuelType: 'DIESEL', transmission: 'AUTOMATIC', mileage: 32000, isActive: true, jobCount: 3, lastService: '2025-07-10' },
-    { id: 3, code: 'VEH-000003', registration: 'CBB-9012', make: 'Honda', model: 'Vezel', variant: 'RS Hybrid', year: 2022, colour: 'White', fuelType: 'HYBRID', transmission: 'CVT', mileage: 21000, isActive: true, jobCount: 2, lastService: '2025-05-22' },
-  ],
-  2: [
-    { id: 4, code: 'VEH-000004', registration: 'CAC-3456', make: 'Mercedes', model: 'E-Class', variant: 'E200 AMG', year: 2020, colour: 'Black', fuelType: 'PETROL', transmission: 'AUTOMATIC', mileage: 45000, isActive: true, jobCount: 5, lastService: '2025-08-17' },
-    { id: 5, code: 'VEH-000005', registration: 'CAD-7890', make: 'Toyota', model: 'Land Cruiser', variant: 'GX 4.0', year: 2018, colour: 'White', fuelType: 'DIESEL', transmission: 'AUTOMATIC', mileage: 112000, isActive: true, jobCount: 7, lastService: '2025-07-28' },
-  ],
-}
-
-// ── Mock job cards ────────────────────────────────────────────────────────────
-const mockJobs: Record<number, any[]> = {
-  1: [
-    { id: 'JC-000128', date: '2025-08-17', vehicle: 'Toyota Corolla · CAB-1234', services: 'Full Interior Detailing + Ceramic Coating', status: 'IN_PROGRESS', priority: 'HIGH', total: 58000, cost: 28500 },
-    { id: 'JC-000115', date: '2025-07-15', vehicle: 'BMW X5 · CAA-5678', services: 'Paint Correction + Graphene Coating', status: 'DELIVERED', priority: 'HIGH', total: 125000, cost: 62000 },
-    { id: 'JC-000098', date: '2025-06-03', vehicle: 'Toyota Corolla · CAB-1234', services: 'Exterior Detailing + Waxing', status: 'DELIVERED', priority: 'NORMAL', total: 35000, cost: 16000 },
-    { id: 'JC-000087', date: '2025-05-20', vehicle: 'Honda Vezel · CBB-9012', services: 'Full Interior + Seat Cleaning', status: 'DELIVERED', priority: 'NORMAL', total: 42000, cost: 19000 },
-    { id: 'JC-000072', date: '2025-04-11', vehicle: 'Toyota Corolla · CAB-1234', services: 'Engine Bay Cleaning', status: 'DELIVERED', priority: 'LOW', total: 12000, cost: 5500 },
-  ],
-}
-
-// ── Mock invoices ─────────────────────────────────────────────────────────────
-const mockInvoices: Record<number, any[]> = {
-  1: [
-    { id: 'INV-000045', date: '2025-08-17', jobCard: 'JC-000128', total: 58000, paid: 0, balance: 58000, status: 'UNPAID', dueDate: '2025-08-31' },
-    { id: 'INV-000038', date: '2025-07-15', jobCard: 'JC-000115', total: 125000, paid: 125000, balance: 0, status: 'PAID', dueDate: '2025-07-29' },
-    { id: 'INV-000021', date: '2025-06-03', jobCard: 'JC-000098', total: 35000, paid: 35000, balance: 0, status: 'PAID', dueDate: '2025-06-17' },
-    { id: 'INV-000015', date: '2025-05-20', jobCard: 'JC-000087', total: 42000, paid: 42000, balance: 0, status: 'PAID', dueDate: '2025-06-03' },
-    { id: 'INV-000008', date: '2025-04-11', jobCard: 'JC-000072', total: 12000, paid: 12000, balance: 0, status: 'PAID', dueDate: '2025-04-25' },
-  ],
-}
-
-// ── Mock payments ─────────────────────────────────────────────────────────────
-const mockPayments: Record<number, any[]> = {
-  1: [
-    { id: 'REC-000042', date: '2025-07-15', invoice: 'INV-000038', amount: 125000, method: 'BANK_TRANSFER', reference: 'TRF-20250715-001', notes: '' },
-    { id: 'REC-000028', date: '2025-06-05', invoice: 'INV-000021', amount: 35000, method: 'CASH', reference: '', notes: '' },
-    { id: 'REC-000019', date: '2025-05-22', invoice: 'INV-000015', amount: 42000, method: 'CARD', reference: 'VIS-4521', notes: '' },
-    { id: 'REC-000009', date: '2025-04-12', invoice: 'INV-000008', amount: 12000, method: 'CASH', reference: '', notes: '' },
-    { id: 'REC-000003', date: '2025-03-01', invoice: '', amount: 113000, method: 'BANK_TRANSFER', reference: 'ADV-001', notes: 'Opening balance / advance payment' },
-  ],
-}
-
-// ── Mock ledger ───────────────────────────────────────────────────────────────
-const mockLedger: Record<number, any[]> = {
-  1: [
-    { id: 1, date: '2025-08-17', type: 'INVOICE', ref: 'INV-000045', description: 'Invoice – JC-000128', debit: 58000, credit: 0, balance: 58000 },
-    { id: 2, date: '2025-07-15', type: 'PAYMENT', ref: 'REC-000042', description: 'Payment – Bank Transfer', debit: 0, credit: 125000, balance: 0 },
-    { id: 3, date: '2025-07-15', type: 'INVOICE', ref: 'INV-000038', description: 'Invoice – JC-000115', debit: 125000, credit: 0, balance: 125000 },
-    { id: 4, date: '2025-06-05', type: 'PAYMENT', ref: 'REC-000028', description: 'Payment – Cash', debit: 0, credit: 35000, balance: 0 },
-    { id: 5, date: '2025-06-03', type: 'INVOICE', ref: 'INV-000021', description: 'Invoice – JC-000098', debit: 35000, credit: 0, balance: 35000 },
-  ],
+const formatDate = (d?: string | null) => {
+  if (!d) return '—'
+  try {
+    const dt = new Date(d)
+    return isNaN(dt.getTime()) ? d : dt.toLocaleDateString('en-GB')
+  } catch {
+    return d
+  }
 }
 
 // ── Status helpers ────────────────────────────────────────────────────────────
@@ -151,11 +104,11 @@ export default function CustomerProfilePage() {
     )
   }
 
-  const vehicles = customerVehicles || []
-  const jobs = mockJobs[customer.id] || []
-  const invoices = mockInvoices[customer.id] || []
-  const payments = mockPayments[customer.id] || []
-  const ledger = mockLedger[customer.id] || []
+  const vehicles: any[] = (customer.vehicles && Array.isArray(customer.vehicles) && customer.vehicles.length > 0) ? customer.vehicles : (customerVehicles || [])
+  const jobs: any[] = customer.jobCards || []
+  const invoices: any[] = customer.invoices || []
+  const payments: any[] = customer.payments || []
+  const ledger: any[] = customer.ledger || []
 
   const tabs = [
     { key: 'vehicles', label: 'Vehicles', icon: Car, count: vehicles.length },
@@ -353,7 +306,7 @@ export default function CustomerProfilePage() {
                   <EmptyState icon={<Car size={22} />} title="No vehicles registered" desc="Add the first vehicle for this customer" />
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {vehicles.map(v => (
+                    {vehicles.map((v: any) => (
                       <div key={v.id} className="card" style={{ cursor: 'pointer' }} onClick={() => navigate(`/vehicles/${v.id}`)}>
                         <div style={{ padding: '14px 16px' }}>
                           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -435,19 +388,23 @@ export default function CustomerProfilePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {jobs.map(j => (
+                        {jobs.map((j: any) => {
+                          const vehText = j.vehicle ? `${j.vehicle.make || ''} ${j.vehicle.model || ''} · ${j.vehicle.registration || ''}` : '—'
+                          const total = Number(j.totalAmount ?? j.total ?? 0)
+                          const cost = Number(j.totalCost ?? j.cost ?? 0)
+                          return (
                           <tr key={j.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/job-cards/${j.id}`)}>
-                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{j.id}</span></td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{j.date}</td>
-                            <td style={{ fontSize: 12 }}>{j.vehicle}</td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 180 }} className="truncate">{j.services}</td>
-                            <td><PriBadge p={j.priority} /></td>
+                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{j.jobNumber || j.id}</span></td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(j.date)}</td>
+                            <td style={{ fontSize: 12 }}>{vehText}</td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 180 }} className="truncate">{j.notes || j.services || 'Service Job'}</td>
+                            <td><PriBadge p={j.priority || 'NORMAL'} /></td>
                             <td><JobStatusBadge s={j.status} /></td>
-                            <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{fmtLKR(j.total)}</td>
+                            <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{fmtLKR(total)}</td>
                             <td>
                               {j.status === 'DELIVERED' ? (
                                 <span style={{ fontWeight: 600, color: 'var(--color-success)', fontFamily: 'monospace', fontSize: 12 }}>
-                                  {fmtLKR(j.total - j.cost)}
+                                  {fmtLKR(total - cost)}
                                 </span>
                               ) : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>}
                             </td>
@@ -457,14 +414,14 @@ export default function CustomerProfilePage() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                       <tfoot>
                         <tr style={{ background: 'var(--hover)' }}>
                           <td colSpan={6} style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', paddingLeft: 14 }}>Total ({jobs.length} jobs)</td>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{fmtLKR(jobs.reduce((s, j) => s + j.total, 0))}</td>
+                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{fmtLKR(jobs.reduce((s: number, j: any) => s + Number(j.totalAmount ?? j.total ?? 0), 0))}</td>
                           <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>
-                            {fmtLKR(jobs.filter(j => j.status === 'DELIVERED').reduce((s, j) => s + (j.total - j.cost), 0))}
+                            {fmtLKR(jobs.filter((j: any) => j.status === 'DELIVERED').reduce((s: number, j: any) => s + (Number(j.totalAmount ?? j.total ?? 0) - Number(j.totalCost ?? j.cost ?? 0)), 0))}
                           </td>
                           <td />
                         </tr>
@@ -502,17 +459,22 @@ export default function CustomerProfilePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {invoices.map(inv => (
+                        {invoices.map((inv: any) => {
+                          const invTotal = Number(inv.total || 0)
+                          const invPaid = Number(inv.amountPaid ?? inv.paid ?? 0)
+                          const invBal = Number(inv.balance ?? (invTotal - invPaid))
+                          const jcRef = inv.jobCards?.map((jc: any) => jc.jobCard?.jobNumber || `JC-${jc.jobCardId}`).join(', ') || '—'
+                          return (
                           <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>
-                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{inv.id}</span></td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{inv.date}</td>
-                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{inv.jobCard}</span></td>
-                            <td style={{ fontSize: 12, color: inv.status === 'UNPAID' ? 'var(--color-danger)' : 'var(--text-muted)' }}>{inv.dueDate}</td>
-                            <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{fmtLKR(inv.total)}</td>
-                            <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-success)' }}>{fmtLKR(inv.paid)}</td>
+                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{inv.invoiceNumber || inv.id}</span></td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(inv.date)}</td>
+                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{jcRef}</span></td>
+                            <td style={{ fontSize: 12, color: inv.status === 'UNPAID' ? 'var(--color-danger)' : 'var(--text-muted)' }}>{formatDate(inv.dueDate)}</td>
+                            <td style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 12 }}>{fmtLKR(invTotal)}</td>
+                            <td style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-success)' }}>{fmtLKR(invPaid)}</td>
                             <td>
-                              {inv.balance > 0
-                                ? <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 12, color: 'var(--color-danger)' }}>{fmtLKR(inv.balance)}</span>
+                              {invBal > 0
+                                ? <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 12, color: 'var(--color-danger)' }}>{fmtLKR(invBal)}</span>
                                 : <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>—</span>
                               }
                             </td>
@@ -523,15 +485,15 @@ export default function CustomerProfilePage() {
                               </button>
                             </td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                       <tfoot>
                         <tr style={{ background: 'var(--hover)' }}>
                           <td colSpan={4} style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', paddingLeft: 14 }}>Total ({invoices.length} invoices)</td>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{fmtLKR(invoices.reduce((s, i) => s + i.total, 0))}</td>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(invoices.reduce((s, i) => s + i.paid, 0))}</td>
+                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{fmtLKR(invoices.reduce((s: number, i: any) => s + Number(i.total || 0), 0))}</td>
+                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(invoices.reduce((s: number, i: any) => s + Number(i.amountPaid ?? i.paid ?? 0), 0))}</td>
                           <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-danger)' }}>
-                            {fmtLKR(invoices.reduce((s, i) => s + i.balance, 0))}
+                            {fmtLKR(invoices.reduce((s: number, i: any) => s + Number(i.balance ?? (Number(i.total || 0) - Number(i.amountPaid ?? i.paid ?? 0))), 0))}
                           </td>
                           <td colSpan={2} />
                         </tr>
@@ -567,22 +529,25 @@ export default function CustomerProfilePage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {payments.map(p => (
+                        {payments.map((p: any) => {
+                          const pAmount = Number(p.amount || 0)
+                          const invRef = p.invoice?.invoiceNumber || (p.invoiceId ? `INV-${p.invoiceId}` : '—')
+                          return (
                           <tr key={p.id}>
-                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{p.id}</span></td>
-                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.date}</td>
-                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{p.invoice || '—'}</span></td>
+                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{p.paymentNumber || p.id}</span></td>
+                            <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(p.date)}</td>
+                            <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--text-muted)' }}>{invRef}</span></td>
                             <td><MethodBadge m={p.method} /></td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.reference || '—'}</td>
-                            <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(p.amount)}</td>
+                            <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(pAmount)}</td>
                             <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{p.notes || '—'}</td>
                           </tr>
-                        ))}
+                        )})}
                       </tbody>
                       <tfoot>
                         <tr style={{ background: 'var(--hover)' }}>
                           <td colSpan={5} style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', paddingLeft: 14 }}>Total Received</td>
-                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(payments.reduce((s, p) => s + p.amount, 0))}</td>
+                          <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13, color: 'var(--color-success)' }}>{fmtLKR(payments.reduce((s: number, p: any) => s + Number(p.amount || 0), 0))}</td>
                           <td />
                         </tr>
                       </tfoot>
@@ -603,19 +568,19 @@ export default function CustomerProfilePage() {
                   <div className="card" style={{ padding: '12px 16px', borderLeft: '3px solid var(--color-danger)' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Total Debits</div>
                     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-danger)' }}>
-                      {fmtLKR(ledger.reduce((s, l) => s + l.debit, 0))}
+                      {fmtLKR(ledger.reduce((s: number, l: any) => s + Number(l.debit || 0), 0))}
                     </div>
                   </div>
                   <div className="card" style={{ padding: '12px 16px', borderLeft: '3px solid var(--color-success)' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Total Credits</div>
                     <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: 'var(--color-success)' }}>
-                      {fmtLKR(ledger.reduce((s, l) => s + l.credit, 0))}
+                      {fmtLKR(ledger.reduce((s: number, l: any) => s + Number(l.credit || 0), 0))}
                     </div>
                   </div>
-                  <div className="card" style={{ padding: '12px 16px', borderLeft: `3px solid ${(customer.outstanding || 0) > 0 ? 'var(--color-danger)' : 'var(--color-success)'}` }}>
+                  <div className="card" style={{ padding: '12px 16px', borderLeft: `3px solid ${(Number(customer.outstanding || 0)) > 0 ? 'var(--color-danger)' : 'var(--color-success)'}` }}>
                     <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 4 }}>Current Balance</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: (customer.outstanding || 0) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                      {(customer.outstanding || 0) > 0 ? fmtLKR(customer.outstanding || 0) : 'Nil'}
+                    <div style={{ fontSize: 18, fontWeight: 700, fontFamily: 'monospace', color: (Number(customer.outstanding || 0)) > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                      {(Number(customer.outstanding || 0)) > 0 ? fmtLKR(customer.outstanding || 0) : 'Nil'}
                     </div>
                   </div>
                 </div>
@@ -634,34 +599,38 @@ export default function CustomerProfilePage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {ledger.map(l => (
+                      {ledger.map((l: any) => {
+                        const dr = Number(l.debit || 0)
+                        const cr = Number(l.credit || 0)
+                        const bal = Number(l.balance || 0)
+                        return (
                         <tr key={l.id}>
-                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{l.date}</td>
+                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(l.date)}</td>
                           <td>
                             <span className={`badge ${l.type === 'INVOICE' ? 'badge-open' : l.type === 'PAYMENT' ? 'badge-paid' : 'badge-draft'}`}>
-                              {l.type === 'INVOICE' ? 'Invoice' : l.type === 'PAYMENT' ? 'Payment' : l.type}
+                              {l.type === 'INVOICE' ? 'Invoice' : l.type === 'PAYMENT' ? 'Payment' : l.type === 'OPENING_BALANCE' ? 'Opening Bal' : l.type}
                             </span>
                           </td>
-                          <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{l.ref}</span></td>
-                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{l.description}</td>
-                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: l.debit > 0 ? 'var(--color-danger)' : 'var(--text-subtle)' }}>
-                            {l.debit > 0 ? fmtLKR(l.debit) : '—'}
+                          <td><span style={{ fontFamily: 'monospace', fontSize: 12, color: 'var(--color-gold-primary)', fontWeight: 600 }}>{l.refNumber || l.ref || '—'}</span></td>
+                          <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{l.description || '—'}</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: dr > 0 ? 'var(--color-danger)' : 'var(--text-subtle)' }}>
+                            {dr > 0 ? fmtLKR(dr) : '—'}
                           </td>
-                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: l.credit > 0 ? 'var(--color-success)' : 'var(--text-subtle)' }}>
-                            {l.credit > 0 ? fmtLKR(l.credit) : '—'}
+                          <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 12, color: cr > 0 ? 'var(--color-success)' : 'var(--text-subtle)' }}>
+                            {cr > 0 ? fmtLKR(cr) : '—'}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', fontSize: 12, color: l.balance > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                            {l.balance === 0 ? 'Nil' : fmtLKR(l.balance)}
+                          <td style={{ textAlign: 'right', fontWeight: 700, fontFamily: 'monospace', fontSize: 12, color: bal > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                            {bal === 0 ? 'Nil' : fmtLKR(bal)}
                           </td>
                         </tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                   <div style={{
                     padding: '10px 16px', borderTop: '1px solid var(--border)',
                     display: 'flex', justifyContent: 'flex-end',
                   }}>
-                    <button className="btn btn-secondary btn-sm">
+                    <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
                       <FileText size={13} /> Print Statement
                     </button>
                   </div>

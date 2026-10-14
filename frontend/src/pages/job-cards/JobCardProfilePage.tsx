@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit2, CheckCircle2, PackagePlus, Trash2, Printer, Plus, AlertTriangle, Car, User, FileText, Loader2, Play, ShoppingCart } from 'lucide-react'
+import { ArrowLeft, Edit2, CheckCircle2, PackagePlus, Trash2, Printer, Plus, AlertTriangle, Car, User, FileText, Loader2, Play, ShoppingCart, Bell } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getJobCardById, updateJobCard, addServiceToJobCard, removeServiceFromJobCard, getServices, type JobCard } from '@/api/jobcards'
+import { getJobCardById, updateJobCard, addServiceToJobCard, removeServiceFromJobCard, deleteJobCard, getServices, type JobCard } from '@/api/jobcards'
 import { getVendors } from '@/api/vendors'
 import { createPurchase } from '@/api/purchases'
 import { generateInvoiceFromJobCard } from '@/api/invoices'
@@ -128,6 +128,24 @@ export default function JobCardProfilePage() {
     )
   }
 
+  const deleteJobMut = useMutation({
+    mutationFn: () => deleteJobCard(id!),
+    onSuccess: () => {
+      success('Job Card Deleted', 'Job card has been deleted successfully.')
+      queryClient.invalidateQueries({ queryKey: ['jobcards'] })
+      navigate('/job-cards')
+    },
+    onError: (err: any) => {
+      error('Delete Failed', err.response?.data?.error || 'Could not delete job card.')
+    }
+  })
+
+  const handleDeleteJob = () => {
+    if (confirm(`Are you sure you want to delete job card ${job?.jobNumber}? This action cannot be undone.`)) {
+      deleteJobMut.mutate()
+    }
+  }
+
   const v = job.vehicle
   const c = job.customer
   const services = job.services || []
@@ -135,7 +153,7 @@ export default function JobCardProfilePage() {
   return (
     <div>
       {/* ── Header ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         <button className="btn btn-ghost btn-sm" onClick={() => navigate('/job-cards')} style={{ gap: 6 }}>
           <ArrowLeft size={14} /> Back
         </button>
@@ -163,11 +181,27 @@ export default function JobCardProfilePage() {
           </button>
         )}
 
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => navigate('/reminders')}
+          style={{ gap: 6, borderColor: 'var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
+        >
+          <Bell size={13} /> Maintenance Reminders
+        </button>
+
         <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/job-cards/${job.id}/edit`)}>
           <Edit2 size={13} /> Edit Details
         </button>
-        <button className="btn btn-secondary btn-sm">
+        <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
           <Printer size={13} /> Print
+        </button>
+        <button
+          className="btn btn-ghost btn-sm"
+          style={{ color: 'var(--color-danger)', gap: 6 }}
+          onClick={handleDeleteJob}
+          disabled={deleteJobMut.isPending}
+        >
+          <Trash2 size={13} /> Delete Job
         </button>
       </div>
 

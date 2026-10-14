@@ -39,3 +39,8 @@ export const createExpense = async (payload: Partial<Expense>): Promise<Expense>
   const { data } = await api.post('/expenses', payload);
   return data;
 };
+
+export const deleteExpense = async (id: number | string): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/expenses/${id}`);
+  return data;
+};

@@ -42,6 +42,9 @@ import VendorLedgerPage from '@/pages/finance/VendorLedgerPage'
 import VendorStatementPage from '@/pages/finance/VendorStatementPage'
 import ExpensesPage from '@/pages/finance/ExpensesPage'
 import ExpenseFormPage from '@/pages/finance/ExpenseFormPage'
+import ChartOfAccountsPage from '@/pages/finance/ChartOfAccountsPage'
+import JournalEntriesPage from '@/pages/finance/JournalEntriesPage'
+import RemindersPage from '@/pages/workshop/RemindersPage'
 import SalesReportsPage from '@/pages/reports/SalesReportsPage'
 import InventoryReportsPage from '@/pages/reports/InventoryReportsPage'
 import ProfitabilityReportsPage from '@/pages/reports/ProfitabilityReportsPage'
@@ -102,6 +105,7 @@ function AppRoutes() {
         <Route path="services" element={<ServicesPage />} />
         <Route path="services/new" element={<ServiceFormPage />} />
         <Route path="services/:id/edit" element={<ServiceFormPage />} />
+        <Route path="reminders" element={<RemindersPage />} />
 
         {/* Sales */}
         <Route path="customers" element={<CustomersPage />} />
@@ -141,6 +145,8 @@ function AppRoutes() {
         <Route path="vendor-ledger/:id" element={<VendorStatementPage />} />
         <Route path="expenses" element={<ExpensesPage />} />
         <Route path="expenses/new" element={<ExpenseFormPage />} />
+        <Route path="chart-of-accounts" element={<ChartOfAccountsPage />} />
+        <Route path="journal-entries" element={<JournalEntriesPage />} />
 
         {/* Reports */}
         <Route path="reports/sales" element={<SalesReportsPage />} />

@@ -590,14 +590,17 @@ export default function InvoiceProfilePage() {
         }
 
         .ird-table thead th {
-          background: #111827;
-          color: #ffffff;
+          background: #f1f5f9;
+          color: #0f172a;
           padding: 10px 12px;
           font-weight: 700;
           font-size: 11px;
           letter-spacing: 0.6px;
           text-transform: uppercase;
-          border: 1px solid #111827;
+          border-top: 2px solid #0f172a;
+          border-bottom: 2px solid #0f172a;
+          border-left: 1px solid #cbd5e1;
+          border-right: 1px solid #cbd5e1;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
@@ -780,8 +783,12 @@ export default function InvoiceProfilePage() {
             border-bottom: 2px solid #000000 !important;
           }
           .ird-table thead th {
-            background-color: #000000 !important;
-            color: #ffffff !important;
+            background-color: #f1f5f9 !important;
+            color: #000000 !important;
+            border-top: 2px solid #000000 !important;
+            border-bottom: 2px solid #000000 !important;
+            border-left: 1px solid #cccccc !important;
+            border-right: 1px solid #cccccc !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }

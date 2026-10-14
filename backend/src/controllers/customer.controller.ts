@@ -64,24 +64,45 @@ export const getCustomerById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const customer = await prisma.customer.findUnique({
       where: { id: Number(id) },
-      include: { ledger: true }
+      include: {
+        vehicles: {
+          orderBy: { createdAt: 'desc' }
+        },
+        jobCards: {
+          orderBy: { date: 'desc' },
+          include: {
+            vehicle: true,
+          }
+        },
+        invoices: {
+          orderBy: { date: 'desc' }
+        },
+        payments: {
+          orderBy: { date: 'desc' }
+        },
+        ledger: {
+          orderBy: { date: 'desc' }
+        }
+      }
     });
     if (!customer) return res.status(404).json({ error: 'Customer not found' });
     
     const totalDebit = customer.ledger.reduce((sum, l) => sum + Number(l.debit), 0);
     const totalCredit = customer.ledger.reduce((sum, l) => sum + Number(l.credit), 0);
     const outstanding = totalDebit - totalCredit;
+    const totalSales = customer.invoices.reduce((sum, inv) => sum + Number(inv.total), 0);
+    const totalPaid = customer.payments.reduce((sum, pay) => sum + Number(pay.amount), 0);
 
     const cObj = {
       ...customer,
       outstanding,
-      totalSales: 0,
-      totalPaid: totalCredit
+      totalSales,
+      totalPaid
     };
-    delete (cObj as any).ledger;
 
     res.json(cObj);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ error: 'Failed to fetch customer' });
   }
 };
@@ -105,6 +126,8 @@ export const createCustomer = async (req: Request, res: Response) => {
           customerId: customer.id,
           date: new Date(),
           type: 'OPENING_BALANCE',
+          refType: 'OPENING_BALANCE',
+          refNumber: 'OB',
           description: 'Opening Balance',
           debit: data.openingBalance,
           balance: data.openingBalance
@@ -125,30 +148,80 @@ export const createCustomer = async (req: Request, res: Response) => {
 export const updateCustomer = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const customerId = Number(id);
     const data = customerSchema.parse(req.body);
 
-    const customer = await prisma.customer.update({
-      where: { id: Number(id) },
-      data: {
-        name: data.name,
-        companyName: data.companyName,
-        mobile: data.mobile,
-        secondaryMobile: data.secondaryMobile,
-        email: data.email,
-        address: data.address,
-        city: data.city,
-        nicTaxId: data.nicTaxId,
-        customerType: data.customerType,
-        creditLimit: data.creditLimit,
-        notes: data.notes,
-        isActive: data.isActive,
-      },
+    const customer = await prisma.$transaction(async (tx) => {
+      const updated = await tx.customer.update({
+        where: { id: customerId },
+        data: {
+          name: data.name,
+          companyName: data.companyName,
+          mobile: data.mobile,
+          secondaryMobile: data.secondaryMobile,
+          email: data.email,
+          address: data.address,
+          city: data.city,
+          nicTaxId: data.nicTaxId,
+          customerType: data.customerType,
+          creditLimit: data.creditLimit,
+          openingBalance: data.openingBalance,
+          notes: data.notes,
+          isActive: data.isActive,
+        },
+      });
+
+      // Sync opening balance in customer ledger
+      const obEntry = await tx.customerLedger.findFirst({
+        where: { customerId, type: 'OPENING_BALANCE' }
+      });
+
+      if (obEntry) {
+        await tx.customerLedger.update({
+          where: { id: obEntry.id },
+          data: {
+            debit: data.openingBalance
+          }
+        });
+      } else if (data.openingBalance > 0) {
+        await tx.customerLedger.create({
+          data: {
+            customerId,
+            date: updated.createdAt || new Date(),
+            type: 'OPENING_BALANCE',
+            refType: 'OPENING_BALANCE',
+            refNumber: 'OB',
+            description: 'Opening Balance',
+            debit: data.openingBalance,
+            balance: data.openingBalance
+          }
+        });
+      }
+
+      // Recompute running balance for customer ledger entries
+      const allEntries = await tx.customerLedger.findMany({
+        where: { customerId },
+        orderBy: { id: 'asc' }
+      });
+
+      let running = 0;
+      for (const entry of allEntries) {
+        running = running + Number(entry.debit) - Number(entry.credit);
+        await tx.customerLedger.update({
+          where: { id: entry.id },
+          data: { balance: running }
+        });
+      }
+
+      return updated;
     });
+
     res.json(customer);
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: 'Validation Error', details: error.errors });
     }
+    console.error(error);
     res.status(500).json({ error: 'Failed to update customer' });
   }
 };

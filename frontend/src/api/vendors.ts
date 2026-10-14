@@ -18,6 +18,13 @@ export interface Vendor {
   createdAt: string;
 
   products?: Product[];
+  purchases?: any[];
+  vendorPayments?: any[];
+  ledger?: any[];
+  balance?: number;
+  totalPurchases?: number;
+  totalPaid?: number;
+  currentBalance?: number;
 }
 
 export const getVendors = async (): Promise<Vendor[]> => {
@@ -37,5 +44,10 @@ export const createVendor = async (payload: Partial<Vendor>): Promise<Vendor> =>
 
 export const updateVendor = async (id: number | string, payload: Partial<Vendor>): Promise<Vendor> => {
   const { data } = await api.put(`/vendors/${id}`, payload);
+  return data;
+};
+
+export const deleteVendor = async (id: number | string): Promise<{ message: string; vendor?: Vendor }> => {
+  const { data } = await api.delete(`/vendors/${id}`);
   return data;
 };

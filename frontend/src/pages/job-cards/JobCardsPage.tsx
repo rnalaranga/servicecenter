@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Plus, Search, Eye, Filter, Loader2, ClipboardList, Clock, AlertTriangle, FileText } from 'lucide-react'
+import { Plus, Search, Eye, Trash2, Filter, Loader2, ClipboardList, Clock, AlertTriangle, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { useQuery } from '@tanstack/react-query'
-import { getJobCards, type JobCard } from '@/api/jobcards'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getJobCards, deleteJobCard, type JobCard } from '@/api/jobcards'
 import { format, parseISO } from 'date-fns'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -16,6 +16,7 @@ type SortKey = 'date' | 'jobNumber' | 'customer' | 'status' | 'total'
 
 export default function JobCardsPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [sortKey, setSortKey] = useState<SortKey>('date')
@@ -27,6 +28,22 @@ export default function JobCardsPage() {
     queryKey: ['jobcards'],
     queryFn: () => getJobCards()
   })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number | string) => deleteJobCard(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['jobcards'] })
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to delete job card')
+    }
+  })
+
+  const handleDelete = (id: number | string, jobNumber: string) => {
+    if (confirm(`Are you sure you want to delete job card ${jobNumber}?`)) {
+      deleteMut.mutate(id)
+    }
+  }
 
   // Filter + sort
   const filtered = jobCards
@@ -246,9 +263,19 @@ export default function JobCardsPage() {
                   </span>
                 </td>
                 <td onClick={e => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-icon btn-sm" title="View Details" onClick={() => navigate(`/job-cards/${j.id}`)}>
-                    <Eye size={13} />
-                  </button>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button className="btn btn-ghost btn-icon btn-sm" title="View Details" onClick={() => navigate(`/job-cards/${j.id}`)}>
+                      <Eye size={13} />
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-icon btn-sm"
+                      style={{ color: 'var(--color-danger)' }}
+                      title="Delete Job Card"
+                      onClick={() => handleDelete(j.id, j.jobNumber)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

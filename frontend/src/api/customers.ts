@@ -18,7 +18,11 @@ export interface Customer {
   isActive: boolean;
   
   // Enriched fields
-  vehicles?: number;
+  vehicles?: any;
+  jobCards?: any[];
+  invoices?: any[];
+  payments?: any[];
+  ledger?: any[];
   outstanding?: number;
   totalSales?: number;
   totalPaid?: number;
