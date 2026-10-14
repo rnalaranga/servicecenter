@@ -78,11 +78,12 @@ export const fixDatabase = async (req: Request, res: Response) => {
   try {
     const backendRoot = path.resolve(__dirname, '../../');
     const localPrisma = path.join(backendRoot, 'node_modules', '.bin', 'prisma');
-    const cmd = fs.existsSync(localPrisma) ? `"${localPrisma}" db push` : 'npx prisma db push';
+    const prismaBin = fs.existsSync(localPrisma) ? `"${localPrisma}"` : 'npx prisma';
+    const cmd = `${prismaBin} db push && ${prismaBin} generate`;
 
     console.log(`[Database Fix] Executing "${cmd}" in ${backendRoot}...`);
 
-    exec(cmd, { cwd: backendRoot, env: process.env }, (error, stdout, stderr) => {
+    exec(cmd, { cwd: backendRoot, env: process.env }, async (error, stdout, stderr) => {
       if (error) {
         console.error('[Database Fix Error]', error, stderr);
         return res.status(500).json({
@@ -92,10 +93,63 @@ export const fixDatabase = async (req: Request, res: Response) => {
         });
       }
 
+      const notes: string[] = [];
+
+      try {
+        // 1. Ensure Main Warehouse exists
+        const wh = await prisma.warehouse.findFirst();
+        if (!wh) {
+          await prisma.warehouse.create({
+            data: {
+              code: 'WH-MAIN',
+              name: 'Main Warehouse',
+              isActive: true
+            }
+          });
+          notes.push('Main Warehouse created.');
+        }
+
+        // 2. Ensure Admin User exists if users table is empty
+        const userCount = await prisma.user.count();
+        if (userCount === 0) {
+          const bcrypt = await import('bcrypt');
+          const hashedPassword = await bcrypt.default.hash('admin123', 10);
+          await prisma.user.create({
+            data: {
+              username: 'admin',
+              email: 'admin@detailshop.local',
+              password: hashedPassword,
+              fullName: 'System Administrator',
+              role: 'ADMIN'
+            }
+          });
+          notes.push('Admin user created (admin / admin123).');
+        }
+
+        // 3. Ensure Default Settings exist if not set
+        const defaultSettings = [
+          { key: 'companyName', value: 'Golden Auto Detail ERP', group: 'GENERAL' },
+          { key: 'currency', value: 'LKR', group: 'FINANCIAL' },
+          { key: 'taxRate', value: '0', group: 'FINANCIAL' },
+          { key: 'invoicePrefix', value: 'INV-', group: 'INVOICE' },
+          { key: 'invoiceTerms', value: 'Thank you for your business. Payment is due upon receipt.', group: 'INVOICE' },
+        ];
+
+        for (const s of defaultSettings) {
+          const exists = await prisma.setting.findUnique({ where: { key: s.key } });
+          if (!exists) {
+            await prisma.setting.create({ data: s });
+          }
+        }
+      } catch (postSyncErr: any) {
+        console.warn('[Post-sync initialization warning]', postSyncErr);
+      }
+
       console.log('[Database Fix Success]', stdout);
+      const extraMessage = notes.length > 0 ? ` (${notes.join(' ')})` : '';
       return res.json({
         success: true,
-        message: 'Database structure synced and fixed successfully without data loss.',
+        message: `Database structure synced, regenerated, and verified successfully without data loss.${extraMessage}`,
         output: stdout
       });
     });

@@ -8,5 +8,6 @@ router.post('/', invoiceController.createDirectInvoice);
 router.post('/from-job-card', invoiceController.createInvoiceFromJobCard);
 router.get('/:id', invoiceController.getInvoiceById);
 router.post('/payment', invoiceController.recordPayment);
+router.delete('/:id', invoiceController.deleteInvoice);
 
 export default router;

@@ -4,7 +4,9 @@ import { z } from 'zod';
 
 export const getProducts = async (req: Request, res: Response) => {
   try {
+    const includeInactive = req.query.includeInactive === 'true';
     const products = await prisma.product.findMany({
+      where: includeInactive ? undefined : { isActive: true },
       include: {
         category: true,
         unit: true,
@@ -169,5 +171,33 @@ export const deleteCategory = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cannot delete category in use' });
     }
     res.status(500).json({ error: 'Failed to delete category' });
+  }
+};
+
+export const deleteProduct = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    // Check if product is referenced in transactions or invoices
+    const hasTransactions = await prisma.stockTransaction.count({ where: { productId: id } });
+    const hasInvoices = await prisma.invoiceItem.count({ where: { productId: id } });
+    const hasJobCards = await prisma.jobCardMaterial.count({ where: { productId: id } });
+    const hasPurchases = await prisma.purchaseItem.count({ where: { productId: id } });
+
+    if (hasTransactions > 0 || hasInvoices > 0 || hasJobCards > 0 || hasPurchases > 0) {
+      await prisma.product.update({
+        where: { id },
+        data: { isActive: false }
+      });
+      return res.json({ success: true, message: 'Product archived because it has linked transactions.' });
+    }
+
+    await prisma.stockLevel.deleteMany({ where: { productId: id } });
+    await prisma.product.delete({ where: { id } });
+
+    res.json({ success: true, message: 'Product deleted successfully.' });
+  } catch (error: any) {
+    console.error('Delete product error:', error);
+    res.status(500).json({ error: 'Failed to delete product' });
   }
 };

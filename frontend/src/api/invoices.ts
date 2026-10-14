@@ -75,3 +75,8 @@ export const recordPayment = async (payload: { invoiceId: number; amount: number
   const { data } = await api.post('/invoices/payment', payload);
   return data;
 };
+
+export const deleteInvoice = async (id: number | string): Promise<{ success: boolean; message: string }> => {
+  const { data } = await api.delete(`/invoices/${id}`);
+  return data;
+};

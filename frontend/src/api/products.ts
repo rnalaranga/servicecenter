@@ -72,3 +72,8 @@ export const updateProductCategory = async (id: number, data: { name: string }) 
   const res = await api.put(`/products/categories/${id}`, data);
   return res.data;
 };
+
+export const deleteProduct = async (id: number | string): Promise<{ success: boolean; message: string }> => {
+  const { data } = await api.delete(`/products/${id}`);
+  return data;
+};

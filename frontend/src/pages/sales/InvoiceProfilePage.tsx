@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock } from 'lucide-react'
+import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getInvoiceById, recordPayment } from '@/api/invoices'
+import { getInvoiceById, recordPayment, deleteInvoice } from '@/api/invoices'
 import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/contexts/ToastContext'
@@ -81,6 +81,16 @@ export default function InvoiceProfilePage() {
     onError: () => error('Payment Failed', 'Could not record the payment.')
   })
 
+  const deleteMut = useMutation({
+    mutationFn: () => deleteInvoice(id!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      success('Invoice Deleted', 'Invoice has been successfully deleted.')
+      navigate('/invoices')
+    },
+    onError: () => error('Delete Failed', 'Could not delete invoice.')
+  })
+
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
   if (!invoice) return <div style={{ padding: 40, textAlign: 'center' }}>Invoice not found</div>
 
@@ -91,6 +101,9 @@ export default function InvoiceProfilePage() {
   const vehicle = invoice.vehicle || invoice.jobCards?.[0]?.jobCard?.vehicle
   const jobCard = invoice.jobCards?.[0]?.jobCard
 
+  const totalDiscountAmount = Number(invoice.discountAmount) || 0
+  const subtotalAmount = Number(invoice.subtotal) > 0 ? Number(invoice.subtotal) : (Number(invoice.total) + totalDiscountAmount)
+
   return (
     <>
       <div className="no-print" style={{ maxWidth: 850, margin: '0 auto', marginBottom: 20 }}>
@@ -99,6 +112,18 @@ export default function InvoiceProfilePage() {
             <ArrowLeft size={14} /> Back to Invoices
           </button>
           <div style={{ flex: 1 }} />
+          <button 
+            className="btn btn-secondary btn-sm" 
+            style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)', gap: 6 }}
+            onClick={() => {
+              if (confirm(`Are you sure you want to delete invoice #${invoice.invoiceNumber}? All associated payments will also be deleted.`)) {
+                deleteMut.mutate()
+              }
+            }}
+            disabled={deleteMut.isPending}
+          >
+            <Trash2 size={14} /> {deleteMut.isPending ? 'Deleting...' : 'Delete Invoice'}
+          </button>
           <button className="btn btn-secondary btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
             <Printer size={14} /> Print Invoice
           </button>
@@ -233,17 +258,19 @@ export default function InvoiceProfilePage() {
         <table className="ird-table">
           <thead>
             <tr>
-              <th style={{ width: '6%', textAlign: 'center' }}>#</th>
-              <th style={{ width: '54%', textAlign: 'left' }}>DESCRIPTION OF GOODS / SERVICES</th>
-              <th style={{ width: '10%', textAlign: 'center' }}>QTY</th>
-              <th style={{ width: '15%', textAlign: 'right' }}>UNIT PRICE (LKR)</th>
-              <th style={{ width: '15%', textAlign: 'right' }}>AMOUNT (LKR)</th>
+              <th style={{ width: '5%', textAlign: 'center' }}>#</th>
+              <th style={{ width: '45%', textAlign: 'left' }}>DESCRIPTION OF GOODS / SERVICES</th>
+              <th style={{ width: '8%', textAlign: 'center' }}>QTY</th>
+              <th style={{ width: '14%', textAlign: 'right' }}>UNIT PRICE (LKR)</th>
+              <th style={{ width: '14%', textAlign: 'right' }}>DISCOUNT (LKR)</th>
+              <th style={{ width: '14%', textAlign: 'right' }}>AMOUNT (LKR)</th>
             </tr>
           </thead>
           <tbody>
             {invoice.items?.map((item: any, index: number) => {
               const qty = Number(item.quantity) || 1
               const unitPrice = Number(item.unitPrice) || Number(item.total) / qty
+              const discount = Number(item.discount) || 0
               const lineTotal = Number(item.total) || 0
 
               return (
@@ -255,6 +282,9 @@ export default function InvoiceProfilePage() {
                   <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
                   <td style={{ textAlign: 'right', verticalAlign: 'top' }}>
                     {unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'right', verticalAlign: 'top', color: discount > 0 ? '#dc2626' : '#9ca3af', fontWeight: discount > 0 ? 600 : 400 }}>
+                    {discount > 0 ? `- ${discount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}
                   </td>
                   <td style={{ textAlign: 'right', verticalAlign: 'top', fontWeight: 600 }}>
                     {lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -288,14 +318,16 @@ export default function InvoiceProfilePage() {
                 <tr>
                   <td className="tot-label">Subtotal:</td>
                   <td className="tot-value">
-                    {Number(invoice.subtotal || invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {subtotalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
-                {Number(invoice.discountAmount) > 0 && (
+                {totalDiscountAmount > 0 && (
                   <tr>
-                    <td className="tot-label">Discount:</td>
-                    <td className="tot-value discount">
-                      - {Number(invoice.discountAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    <td className="tot-label" style={{ color: '#dc2626', fontWeight: 600 }}>
+                      Discount:
+                    </td>
+                    <td className="tot-value discount" style={{ color: '#dc2626', fontWeight: 700 }}>
+                      - {totalDiscountAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 )}

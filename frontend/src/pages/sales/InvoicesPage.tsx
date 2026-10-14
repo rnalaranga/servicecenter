@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Search, Eye, Loader2, FileText, DollarSign, AlertCircle, TrendingUp, Plus } from 'lucide-react'
+import { Search, Eye, Loader2, FileText, DollarSign, AlertCircle, TrendingUp, Plus, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { getInvoices } from '@/api/invoices'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getInvoices, deleteInvoice } from '@/api/invoices'
+import { useToast } from '@/contexts/ToastContext'
 import { format, parseISO } from 'date-fns'
 
 function fmtLKR(n: number) {
@@ -20,6 +21,8 @@ function StatusBadge({ s }: { s: string }) {
 
 export default function InvoicesPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { success, error } = useToast()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [page, setPage] = useState(1)
@@ -28,6 +31,17 @@ export default function InvoicesPage() {
   const { data: invoices = [], isLoading } = useQuery({
     queryKey: ['invoices'],
     queryFn: getInvoices
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: deleteInvoice,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      success('Invoice Deleted', 'Invoice has been deleted successfully.')
+    },
+    onError: () => {
+      error('Delete Failed', 'Failed to delete invoice.')
+    }
   })
 
   const filtered = invoices.filter(i => {
@@ -189,9 +203,22 @@ export default function InvoicesPage() {
                 <td style={{ textAlign: 'center' }}>
                   <StatusBadge s={inv.status} />
                 </td>
-                <td onClick={e => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate(`/invoices/${inv.id}`)}>
+                <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn btn-ghost btn-icon btn-sm" title="View Invoice" onClick={() => navigate(`/invoices/${inv.id}`)}>
                     <Eye size={13} />
+                  </button>
+                  <button 
+                    className="btn btn-ghost btn-icon btn-sm" 
+                    title="Delete Invoice"
+                    style={{ color: 'var(--color-danger)', marginLeft: 4 }}
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete invoice #${inv.invoiceNumber}? All associated payments will also be removed.`)) {
+                        deleteMut.mutate(inv.id)
+                      }
+                    }}
+                    disabled={deleteMut.isPending}
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </td>
               </tr>

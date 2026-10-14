@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Plus, Search, Eye, Filter, Loader2, Package, AlertTriangle, Box } from 'lucide-react'
+import { Plus, Search, Eye, Filter, Loader2, Package, AlertTriangle, Box, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { useQuery } from '@tanstack/react-query'
-import { getProducts, getProductCategories, type Product } from '@/api/products'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getProducts, getProductCategories, deleteProduct, type Product } from '@/api/products'
+import { useToast } from '@/contexts/ToastContext'
 
 function fmtLKR(n: number) {
   return `LKR ${Number(n).toLocaleString('en-LK')}`
@@ -11,6 +12,8 @@ function fmtLKR(n: number) {
 
 export default function ProductsPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { success, error } = useToast()
   const [search, setSearch] = useState('')
   const [catFilter, setCatFilter] = useState<string>('ALL')
   const [page, setPage] = useState(1)
@@ -19,6 +22,17 @@ export default function ProductsPage() {
   const { data: products = [], isLoading } = useQuery({
     queryKey: ['products'],
     queryFn: getProducts
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: deleteProduct,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      success('Product Deleted', data?.message || 'Product has been successfully removed.')
+    },
+    onError: () => {
+      error('Delete Failed', 'Could not delete product.')
+    }
   })
 
   const { data: categories = [] } = useQuery({
@@ -189,9 +203,22 @@ export default function ProductsPage() {
                     {p.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td onClick={e => e.stopPropagation()}>
-                  <button className="btn btn-ghost btn-icon btn-sm" onClick={() => navigate(`/products/${p.id}`)}>
+                <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                  <button className="btn btn-ghost btn-icon btn-sm" title="View Product" onClick={() => navigate(`/products/${p.id}`)}>
                     <Eye size={13} />
+                  </button>
+                  <button 
+                    className="btn btn-ghost btn-icon btn-sm" 
+                    title="Delete Product"
+                    style={{ color: 'var(--color-danger)', marginLeft: 4 }}
+                    onClick={() => {
+                      if (confirm(`Are you sure you want to delete product "${p.name}"?`)) {
+                        deleteMut.mutate(p.id)
+                      }
+                    }}
+                    disabled={deleteMut.isPending}
+                  >
+                    <Trash2 size={13} />
                   </button>
                 </td>
               </tr>

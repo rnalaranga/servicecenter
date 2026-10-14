@@ -1,7 +1,8 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Edit2, Package, Tag, Box, AlertTriangle, Loader2 } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { getProductById } from '@/api/products'
+import { ArrowLeft, Edit2, Package, Tag, Box, AlertTriangle, Loader2, Trash2 } from 'lucide-react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getProductById, deleteProduct } from '@/api/products'
+import { useToast } from '@/contexts/ToastContext'
 
 function fmtLKR(n: number) {
   if (!n) return <span style={{ color: 'var(--text-subtle)' }}>—</span>
@@ -11,10 +12,24 @@ function fmtLKR(n: number) {
 export default function ProductProfilePage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const { success, error } = useToast()
 
   const { data: product, isLoading } = useQuery({
     queryKey: ['products', id],
     queryFn: () => getProductById(id!)
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: () => deleteProduct(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['products'] })
+      success('Product Deleted', data?.message || 'Product has been deleted.')
+      navigate('/products')
+    },
+    onError: () => {
+      error('Delete Failed', 'Failed to delete product.')
+    }
   })
 
   if (isLoading) {
@@ -45,6 +60,18 @@ export default function ProductProfilePage() {
           <ArrowLeft size={14} /> Back
         </button>
         <div style={{ flex: 1 }} />
+        <button 
+          className="btn btn-secondary btn-sm" 
+          style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)' }}
+          onClick={() => {
+            if (confirm(`Are you sure you want to delete product "${product.name}"?`)) {
+              deleteMut.mutate()
+            }
+          }}
+          disabled={deleteMut.isPending}
+        >
+          <Trash2 size={13} /> {deleteMut.isPending ? 'Deleting...' : 'Delete Product'}
+        </button>
         <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/products/${product.id}/edit`)}>
           <Edit2 size={13} /> Edit Product
         </button>

@@ -333,3 +333,35 @@ export const recordPayment = async (req: Request, res: Response) => {
     else res.status(500).json({ error: 'Failed to record payment' });
   }
 };
+
+export const deleteInvoice = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const invoice = await prisma.invoice.findUnique({
+      where: { id }
+    });
+
+    if (!invoice) {
+      return res.status(404).json({ error: 'Invoice not found' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete associated payments
+      await tx.customerPayment.deleteMany({ where: { invoiceId: id } });
+      // 2. Delete customer ledger entries for this invoice
+      await tx.customerLedger.deleteMany({ where: { invoiceId: id } });
+      // 3. Delete job card links
+      await tx.invoiceJobCard.deleteMany({ where: { invoiceId: id } });
+      // 4. Delete invoice items
+      await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
+      // 5. Delete the invoice
+      await tx.invoice.delete({ where: { id } });
+    });
+
+    res.json({ success: true, message: 'Invoice deleted successfully.' });
+  } catch (error: any) {
+    console.error('Delete invoice error:', error);
+    res.status(500).json({ error: 'Failed to delete invoice' });
+  }
+};
