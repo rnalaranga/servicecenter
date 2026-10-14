@@ -1,11 +1,59 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, CreditCard, X } from 'lucide-react'
+import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getInvoiceById, recordPayment } from '@/api/invoices'
 import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/contexts/ToastContext'
+
+function numberToWordsLKR(amount: number): string {
+  if (isNaN(amount) || amount === 0) return 'Sri Lankan Rupees Zero Only';
+
+  const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
+    'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const convertUnderThousand = (n: number): string => {
+    let str = '';
+    if (n >= 100) {
+      str += ones[Math.floor(n / 100)] + ' Hundred ';
+      n %= 100;
+      if (n > 0) str += 'and ';
+    }
+    if (n >= 20) {
+      str += tens[Math.floor(n / 10)] + ' ';
+      n %= 10;
+    }
+    if (n > 0) {
+      str += ones[n] + ' ';
+    }
+    return str.trim();
+  };
+
+  const integerPart = Math.floor(Math.abs(amount));
+  const cents = Math.round((Math.abs(amount) - integerPart) * 100);
+
+  let words = '';
+  const billions = Math.floor(integerPart / 1000000000);
+  const millions = Math.floor((integerPart % 1000000000) / 1000000);
+  const thousands = Math.floor((integerPart % 1000000) / 1000);
+  const remainder = integerPart % 1000;
+
+  if (billions > 0) words += convertUnderThousand(billions) + ' Billion ';
+  if (millions > 0) words += convertUnderThousand(millions) + ' Million ';
+  if (thousands > 0) words += convertUnderThousand(thousands) + ' Thousand ';
+  if (remainder > 0) words += convertUnderThousand(remainder);
+
+  words = words.trim();
+  if (!words) words = 'Zero';
+
+  let result = `Sri Lankan Rupees ${words}`;
+  if (cents > 0) {
+    result += ` and ${convertUnderThousand(cents)} Cents`;
+  }
+  return result + ' Only';
+}
 
 export default function InvoiceProfilePage() {
   const { id } = useParams<{ id: string }>()
@@ -34,114 +82,266 @@ export default function InvoiceProfilePage() {
   })
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
-  if (!invoice) return <div>Invoice not found</div>
+  if (!invoice) return <div style={{ padding: 40, textAlign: 'center' }}>Invoice not found</div>
 
   const isPaid = invoice.status === 'PAID'
+  const isPartial = invoice.status === 'PARTIALLY_PAID' || (Number(invoice.amountPaid) > 0 && Number(invoice.balance) > 0)
+
+  // Extract vehicle and job card details if available
+  const vehicle = invoice.vehicle || invoice.jobCards?.[0]?.jobCard?.vehicle
+  const jobCard = invoice.jobCards?.[0]?.jobCard
 
   return (
     <>
-      <div className="no-print" style={{ maxWidth: 800, margin: '0 auto', marginBottom: 20 }}>
+      <div className="no-print" style={{ maxWidth: 850, margin: '0 auto', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button className="btn btn-ghost btn-sm" onClick={() => navigate('/invoices')} style={{ gap: 6 }}>
             <ArrowLeft size={14} /> Back to Invoices
           </button>
           <div style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" onClick={() => window.print()}>
-            <Printer size={13} /> Print
+          <button className="btn btn-secondary btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
+            <Printer size={14} /> Print Invoice
           </button>
           {!isPaid && (
             <button className="btn btn-primary btn-sm" onClick={() => {
               setPayAmount(String(invoice.balance))
               setShowPayModal(true)
-            }}>
-              <CreditCard size={13} /> Record Payment
+            }} style={{ gap: 6 }}>
+              <CreditCard size={14} /> Record Payment
             </button>
           )}
         </div>
       </div>
 
+      {/* Sri Lanka IRD Format Invoice Paper */}
       <div className="invoice-paper">
-        <div className="print-header">
-          <div className="print-header-left">Invoice</div>
-          <div className="print-header-right">
-            <div className="print-logo" style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              {settings?.invoiceLogo || settings?.logoDark ? (
-                <img src={settings?.invoiceLogo || settings?.logoDark} alt="Logo" style={{ height: 48, objectFit: 'contain' }} />
-              ) : (
-                <>
-                  <svg width="40" height="12" viewBox="0 0 100 30" style={{ fill: '#fff', verticalAlign: 'middle', marginRight: 8, display: 'inline-block' }}>
-                    <path d="M10,20 Q20,10 40,10 L60,10 Q80,10 90,20 L95,30 L5,30 Z" opacity="0.8"/>
-                    <circle cx="25" cy="30" r="5" fill="#fff"/>
-                    <circle cx="75" cy="30" r="5" fill="#fff"/>
-                  </svg>
-                  {settings?.companyName || 'AUTO ELEVATE'}
-                </>
-              )}
+        {/* Header Section */}
+        <div className="ird-header">
+          <div className="ird-company-info">
+            {settings?.invoiceLogo || settings?.logoDark ? (
+              <img 
+                src={settings?.invoiceLogo || settings?.logoDark} 
+                alt="Logo" 
+                style={{ maxHeight: 60, maxWidth: 220, objectFit: 'contain', marginBottom: 8 }} 
+              />
+            ) : null}
+            <div className="ird-company-name">{settings?.companyName || 'AUTO ELEVATE'}</div>
+            <div className="ird-company-address">{settings?.companyAddress || 'No. 4, Thudella, Ja-Ela, Sri Lanka'}</div>
+            <div className="ird-company-contact">
+              {settings?.companyPhone ? `Tel: ${settings.companyPhone}` : ''}
+              {settings?.companyEmail ? ` | Email: ${settings.companyEmail}` : ''}
             </div>
-            <div className="print-address">{settings?.companyAddress || 'No.4, Thudella, Ja Ela'}</div>
-          </div>
-        </div>
-        
-        <div className="print-content">
-          <div className="print-info">
-            <div className="print-info-left">
-              <div className="print-label">ISSUED TO: {invoice.customer?.code || ''}</div>
-              <div className="print-value">{invoice.customer?.name}</div>
-              <div className="print-value">Contact No. {invoice.customer?.mobile}</div>
-            </div>
-            <div className="print-info-right">
-              <div className="print-label">INVOICE NO:</div>
-              <div className="print-value" style={{ fontWeight: 700, fontSize: 14 }}>#{invoice.invoiceNumber}</div>
-              <div className="print-value" style={{ marginTop: 16, color: '#555' }}>{format(parseISO(invoice.date), 'dd.MM.yyyy')}</div>
+            
+            {/* IRD Identification (TIN & BRN) */}
+            <div className="ird-tax-info">
+              {settings?.companyTin ? (
+                <span><strong>TIN:</strong> {settings.companyTin}</span>
+              ) : null}
+              {settings?.companyBrn ? (
+                <span style={{ marginLeft: settings?.companyTin ? 12 : 0 }}>
+                  <strong>BRN:</strong> {settings.companyBrn}
+                </span>
+              ) : null}
             </div>
           </div>
 
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th style={{ width: '10%', textAlign: 'left' }}>ORDER</th>
-                <th style={{ width: '70%', textAlign: 'left' }}>SERVICE</th>
-                <th style={{ width: '20%', textAlign: 'right' }}>TOTAL</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoice.items?.map((item: any, index: number) => (
-                <tr key={item.id}>
-                  <td style={{ verticalAlign: 'top', fontWeight: 500, paddingTop: 30 }}>{index + 1}</td>
-                  <td style={{ textAlign: 'left', paddingRight: 20, paddingTop: 30 }}>
-                    <div style={{ fontWeight: 500, fontSize: '14px', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
-                      {item.description}
-                    </div>
-                  </td>
-                  <td style={{ verticalAlign: 'top', textAlign: 'right', fontWeight: 500, fontSize: '14px', paddingTop: 30 }}>
-                    {Number(item.total).toLocaleString('en-US')}
+          <div className="ird-meta-info">
+            <div className="ird-title">INVOICE</div>
+            <table className="ird-meta-table">
+              <tbody>
+                <tr>
+                  <td className="meta-label">Invoice No:</td>
+                  <td className="meta-value highlight">#{invoice.invoiceNumber}</td>
+                </tr>
+                <tr>
+                  <td className="meta-label">Date:</td>
+                  <td className="meta-value">{format(parseISO(invoice.date), 'dd/MM/yyyy')}</td>
+                </tr>
+                <tr>
+                  <td className="meta-label">Payment Terms:</td>
+                  <td className="meta-value">Due on Receipt</td>
+                </tr>
+                <tr>
+                  <td className="meta-label">Status:</td>
+                  <td className="meta-value">
+                    <span className={`status-pill ${isPaid ? 'paid' : isPartial ? 'partial' : 'unpaid'}`}>
+                      {isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
+                    </span>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
 
-          <div className="print-totals">
-            <div className="print-totals-row">
-              <span>TOTAL {Number(invoice.discountAmount) > 0 ? '(SPECIAL OFFERS)' : ''}</span>
-              <span>{Number(invoice.total).toLocaleString('en-US')}</span>
+        {/* Customer & Vehicle Information Box */}
+        <div className="ird-parties-grid">
+          <div className="party-box">
+            <div className="party-title">CUSTOMER (BUYER) DETAILS</div>
+            <div className="party-row">
+              <span className="party-label">Name:</span>
+              <span className="party-value"><strong>{invoice.customer?.name}</strong> {invoice.customer?.code ? `(${invoice.customer.code})` : ''}</span>
             </div>
-            <div className="print-totals-final">
-              <span style={{ letterSpacing: 1, marginTop: 6 }}>Total</span>
-              <div className="print-totals-final-value">
-                <div style={{ fontSize: 12, marginBottom: 4, letterSpacing: 1 }}>LKR</div>
-                {Number(invoice.total).toLocaleString('en-US')}
+            {invoice.customer?.companyName && (
+              <div className="party-row">
+                <span className="party-label">Company:</span>
+                <span className="party-value">{invoice.customer.companyName}</span>
+              </div>
+            )}
+            <div className="party-row">
+              <span className="party-label">Address:</span>
+              <span className="party-value">{invoice.customer?.address || 'N/A'}{invoice.customer?.city ? `, ${invoice.customer.city}` : ''}</span>
+            </div>
+            <div className="party-row">
+              <span className="party-label">Contact:</span>
+              <span className="party-value">{invoice.customer?.mobile || 'N/A'}</span>
+            </div>
+            {invoice.customer?.nicTaxId && (
+              <div className="party-row">
+                <span className="party-label">NIC / TIN:</span>
+                <span className="party-value">{invoice.customer.nicTaxId}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="party-box">
+            <div className="party-title">SERVICE / VEHICLE DETAILS</div>
+            <div className="party-row">
+              <span className="party-label">Vehicle No:</span>
+              <span className="party-value vehicle-reg">{vehicle?.registration || invoice.customer?.code || 'N/A'}</span>
+            </div>
+            {(vehicle?.make || vehicle?.model) && (
+              <div className="party-row">
+                <span className="party-label">Make / Model:</span>
+                <span className="party-value">{vehicle.make} {vehicle.model}</span>
+              </div>
+            )}
+            {jobCard?.jobNumber && (
+              <div className="party-row">
+                <span className="party-label">Job Card Ref:</span>
+                <span className="party-value">#{jobCard.jobNumber}</span>
+              </div>
+            )}
+            <div className="party-row">
+              <span className="party-label">Currency:</span>
+              <span className="party-value">LKR (Sri Lankan Rupee)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Particulars Table */}
+        <table className="ird-table">
+          <thead>
+            <tr>
+              <th style={{ width: '6%', textAlign: 'center' }}>#</th>
+              <th style={{ width: '54%', textAlign: 'left' }}>DESCRIPTION OF GOODS / SERVICES</th>
+              <th style={{ width: '10%', textAlign: 'center' }}>QTY</th>
+              <th style={{ width: '15%', textAlign: 'right' }}>UNIT PRICE (LKR)</th>
+              <th style={{ width: '15%', textAlign: 'right' }}>AMOUNT (LKR)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoice.items?.map((item: any, index: number) => {
+              const qty = Number(item.quantity) || 1
+              const unitPrice = Number(item.unitPrice) || Number(item.total) / qty
+              const lineTotal = Number(item.total) || 0
+
+              return (
+                <tr key={item.id || index}>
+                  <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{index + 1}</td>
+                  <td style={{ textAlign: 'left', verticalAlign: 'top' }}>
+                    <div style={{ fontWeight: 600, color: '#111' }}>{item.description}</div>
+                  </td>
+                  <td style={{ textAlign: 'center', verticalAlign: 'top' }}>{qty}</td>
+                  <td style={{ textAlign: 'right', verticalAlign: 'top' }}>
+                    {unitPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'right', verticalAlign: 'top', fontWeight: 600 }}>
+                    {lineTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+
+        {/* Financial Summary & Amount in Words (NO TAX) */}
+        <div className="ird-summary-section">
+          <div className="ird-summary-left">
+            <div className="amount-in-words-box">
+              <div className="words-title">AMOUNT IN WORDS:</div>
+              <div className="words-content">{numberToWordsLKR(Number(invoice.total))}</div>
+            </div>
+
+            {/* Terms and Notes */}
+            <div className="ird-notes-box">
+              <div className="notes-title">TERMS & CONDITIONS:</div>
+              <div className="notes-body">
+                {invoice.terms || settings?.invoiceTerms || '1. All payments are due upon receipt.\n2. Goods & services once delivered and accepted in good order are non-refundable.\n3. Make all cheques payable to the company name.'}
               </div>
             </div>
           </div>
 
-          <div className="print-conditions">
-            
-            
-            <div className="print-signature">
-              thank<br/>You
-            </div>
+          <div className="ird-summary-right">
+            <table className="totals-table">
+              <tbody>
+                <tr>
+                  <td className="tot-label">Subtotal:</td>
+                  <td className="tot-value">
+                    {Number(invoice.subtotal || invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+                {Number(invoice.discountAmount) > 0 && (
+                  <tr>
+                    <td className="tot-label">Discount:</td>
+                    <td className="tot-value discount">
+                      - {Number(invoice.discountAmount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                )}
+                {/* STRICTLY NO TAX LINE HERE AS REQUESTED */}
+                <tr className="grand-total-row">
+                  <td className="tot-label">TOTAL AMOUNT DUE:</td>
+                  <td className="tot-value">
+                    <span className="currency-unit">LKR</span> {Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+                <tr>
+                  <td className="tot-label">Amount Paid:</td>
+                  <td className="tot-value">
+                    {Number(invoice.amountPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+                <tr className="balance-row">
+                  <td className="tot-label">Balance Due:</td>
+                  <td className="tot-value">
+                    {Number(invoice.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
+        </div>
+
+        {/* IRD Signature & Acknowledgment Blocks */}
+        <div className="ird-signatures-grid">
+          <div className="sig-block">
+            <div className="sig-line"></div>
+            <div className="sig-label">Customer's Signature / Received By</div>
+            <div className="sig-sub">Goods / Services received in good order & condition</div>
+          </div>
+
+          <div className="sig-block" style={{ textAlign: 'right' }}>
+            <div className="sig-line" style={{ marginLeft: 'auto' }}></div>
+            <div className="sig-label">Authorized Signatory & Stamp</div>
+            <div className="sig-sub">For {settings?.companyName || 'AUTO ELEVATE'}</div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="ird-footer">
+          <div>This is a computer-generated commercial invoice.</div>
+          <div>Thank you for your business!</div>
         </div>
       </div>
 
@@ -185,79 +385,380 @@ export default function InvoiceProfilePage() {
         </div>
       )}
 
+      {/* Sri Lanka IRD Format Print & Display Styling */}
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital@0;1&family=Great+Vibes&display=swap');
-
         .invoice-paper {
-          background: #fff;
+          background: #ffffff;
           width: 100%;
-          max-width: 800px;
-          margin: 0 auto;
-          box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-          font-family: 'Montserrat', sans-serif;
-          color: #000;
-          position: relative;
-          overflow: hidden;
+          max-width: 850px;
+          margin: 0 auto 40px auto;
+          padding: 40px 48px;
+          border-radius: 4px;
+          box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          color: #1f2937;
+          box-sizing: border-box;
+          border: 1px solid #e5e7eb;
         }
-        .print-header {
-          background: #000; color: #fff; padding: 40px 50px;
-          display: flex; justify-content: space-between; align-items: center;
-          -webkit-print-color-adjust: exact; print-color-adjust: exact;
+
+        .ird-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          border-bottom: 2px solid #111827;
+          padding-bottom: 20px;
+          margin-bottom: 24px;
         }
-        .print-header-left { font-family: 'Playfair Display', serif; font-size: 44px; letter-spacing: 2px; }
-        .print-header-right { text-align: right; }
-        .print-logo {
-          font-size: 16px; font-weight: 700; letter-spacing: 4px;
-          text-transform: uppercase; margin-bottom: 4px;
+
+        .ird-company-info {
+          flex: 1;
+          padding-right: 20px;
         }
-        .print-address { font-size: 12px; color: #ccc; letter-spacing: 1px; }
-        .print-content { padding: 50px; position: relative; min-height: 800px; }
-        .print-info {
-          display: flex; justify-content: space-between; margin-bottom: 60px;
-          font-size: 13px; line-height: 1.8;
+
+        .ird-company-name {
+          font-size: 24px;
+          font-weight: 800;
+          color: #111827;
+          letter-spacing: -0.01em;
+          text-transform: uppercase;
+          margin-bottom: 4px;
         }
-        .print-info-left { flex: 1; }
-        .print-info-right { text-align: right; }
-        .print-label { font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
-        .print-value { color: #333; font-weight: 500; }
-        .print-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .print-table th {
-          border-top: 1px solid #000; border-bottom: 1px solid #000;
-          padding: 12px 0; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase;
+
+        .ird-company-address {
+          font-size: 13px;
+          color: #4b5563;
+          line-height: 1.5;
         }
-        .print-table td { padding: 30px 0; border-bottom: 1px solid #eee; }
-        .print-totals { border-top: 1px solid #000; margin-bottom: 60px; padding-top: 20px; }
-        .print-totals-row {
-          display: flex; justify-content: space-between;
-          font-weight: 700; font-size: 14px; letter-spacing: 1px;
-          margin-bottom: 24px; border-bottom: 1px solid #000; padding-bottom: 20px;
+
+        .ird-company-contact {
+          font-size: 12px;
+          color: #4b5563;
+          margin-top: 2px;
         }
-        .print-totals-final {
-          display: flex; justify-content: flex-end; gap: 40px;
-          font-size: 14px; align-items: flex-start;
+
+        .ird-tax-info {
+          font-size: 12px;
+          color: #111827;
+          margin-top: 6px;
+          background: #f3f4f6;
+          display: inline-block;
+          padding: 3px 8px;
+          border-radius: 4px;
+          border: 1px solid #e5e7eb;
         }
-        .print-totals-final-value { text-align: right; font-size: 18px; font-weight: 500; letter-spacing: 1px; }
-        .print-conditions-title { font-weight: 700; font-size: 13px; letter-spacing: 1px; margin-bottom: 16px; text-transform: uppercase; }
-        .print-conditions-list { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.6; color: #111; }
-        .print-conditions-list li { margin-bottom: 12px; }
-        .print-conditions-list strong { font-weight: 600; }
-        .print-signature {
-          position: absolute; bottom: 50px; right: 50px;
-          font-family: 'Great Vibes', cursive; font-size: 64px; line-height: 0.9; color: #333;
-          transform: rotate(-5deg); text-align: center;
+
+        .ird-meta-info {
+          text-align: right;
+          min-width: 250px;
+        }
+
+        .ird-title {
+          font-size: 32px;
+          font-weight: 900;
+          letter-spacing: 2px;
+          color: #111827;
+          margin-bottom: 12px;
+          line-height: 1;
+        }
+
+        .ird-meta-table {
+          margin-left: auto;
+          border-collapse: collapse;
+          font-size: 13px;
+        }
+
+        .ird-meta-table td {
+          padding: 3px 0;
+        }
+
+        .meta-label {
+          color: #6b7280;
+          font-weight: 500;
+          padding-right: 12px !important;
+          text-align: right;
+        }
+
+        .meta-value {
+          color: #111827;
+          font-weight: 600;
+          text-align: right;
+        }
+
+        .meta-value.highlight {
+          font-size: 15px;
+          font-weight: 700;
+          color: #0f172a;
+        }
+
+        .status-pill {
+          display: inline-block;
+          padding: 2px 8px;
+          font-size: 11px;
+          font-weight: 700;
+          border-radius: 4px;
+          letter-spacing: 0.5px;
+        }
+        .status-pill.paid { background: #dcfce7; color: #15803d; }
+        .status-pill.partial { background: #fef9c3; color: #854d0e; }
+        .status-pill.unpaid { background: #fee2e2; color: #b91c1c; }
+
+        .ird-parties-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-bottom: 24px;
+        }
+
+        .party-box {
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
+          padding: 14px 16px;
+          font-size: 12px;
+        }
+
+        .party-title {
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.8px;
+          color: #374151;
+          border-bottom: 1px solid #e5e7eb;
+          padding-bottom: 6px;
+          margin-bottom: 8px;
+        }
+
+        .party-row {
+          display: flex;
+          margin-bottom: 4px;
+          line-height: 1.5;
+        }
+
+        .party-label {
+          width: 90px;
+          color: #6b7280;
+          flex-shrink: 0;
+        }
+
+        .party-value {
+          color: #111827;
+          flex: 1;
+        }
+
+        .party-value.vehicle-reg {
+          font-weight: 700;
+          color: #0f172a;
+          letter-spacing: 0.5px;
+        }
+
+        .ird-table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-bottom: 24px;
+          font-size: 13px;
+        }
+
+        .ird-table thead th {
+          background: #111827;
+          color: #ffffff;
+          padding: 10px 12px;
+          font-weight: 700;
+          font-size: 11px;
+          letter-spacing: 0.6px;
+          text-transform: uppercase;
+          border: 1px solid #111827;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        .ird-table tbody td {
+          padding: 12px;
+          border: 1px solid #e5e7eb;
+          line-height: 1.5;
+        }
+
+        .ird-table tbody tr:nth-child(even) {
+          background: #f9fafb;
+        }
+
+        .ird-summary-section {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr;
+          gap: 24px;
+          margin-bottom: 32px;
+        }
+
+        .amount-in-words-box {
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          border-left: 4px solid #111827;
+          padding: 12px 16px;
+          border-radius: 4px;
+          margin-bottom: 16px;
+        }
+
+        .words-title {
+          font-size: 11px;
+          font-weight: 700;
+          color: #64748b;
+          letter-spacing: 0.5px;
+          margin-bottom: 4px;
+        }
+
+        .words-content {
+          font-size: 13px;
+          font-weight: 700;
+          color: #0f172a;
+          font-style: italic;
+        }
+
+        .ird-notes-box {
+          font-size: 11px;
+          color: #4b5563;
+          line-height: 1.5;
+        }
+
+        .notes-title {
+          font-weight: 700;
+          color: #374151;
+          margin-bottom: 4px;
+        }
+
+        .notes-body {
+          white-space: pre-wrap;
+        }
+
+        .totals-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: 13px;
+        }
+
+        .totals-table td {
+          padding: 6px 10px;
+        }
+
+        .tot-label {
+          text-align: right;
+          color: #4b5563;
+          font-weight: 500;
+        }
+
+        .tot-value {
+          text-align: right;
+          color: #111827;
+          font-weight: 600;
+          min-width: 120px;
+        }
+
+        .tot-value.discount {
+          color: #dc2626;
+        }
+
+        .grand-total-row {
+          border-top: 2px solid #111827;
+          border-bottom: 2px solid #111827;
+        }
+
+        .grand-total-row td {
+          padding: 10px;
+          font-size: 16px;
+          font-weight: 800;
+          color: #111827;
+        }
+
+        .grand-total-row .currency-unit {
+          font-size: 12px;
+          font-weight: 600;
+          color: #6b7280;
+        }
+
+        .balance-row td {
+          font-weight: 700;
+          color: #0f172a;
+          background: #f3f4f6;
+          border-top: 1px solid #e5e7eb;
+        }
+
+        .ird-signatures-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 60px;
+          margin-top: 48px;
+          padding-top: 20px;
+        }
+
+        .sig-block {
+          font-size: 12px;
+        }
+
+        .sig-line {
+          width: 220px;
+          border-bottom: 1px dashed #6b7280;
+          margin-bottom: 8px;
+        }
+
+        .sig-label {
+          font-weight: 700;
+          color: #111827;
+        }
+
+        .sig-sub {
+          font-size: 11px;
+          color: #6b7280;
+          margin-top: 2px;
+        }
+
+        .ird-footer {
+          margin-top: 40px;
+          padding-top: 16px;
+          border-top: 1px solid #e5e7eb;
+          text-align: center;
+          font-size: 11px;
+          color: #9ca3af;
+          display: flex;
+          justify-content: space-between;
         }
 
         @media print {
-          @page { margin: 0; size: A4; }
-          body * { visibility: hidden; }
-          .no-print { display: none !important; }
-          .invoice-paper, .invoice-paper * { visibility: visible; }
+          @page {
+            margin: 12mm 15mm;
+            size: A4 portrait;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .invoice-paper, .invoice-paper * {
+            visibility: visible;
+          }
           .invoice-paper {
-            position: absolute; left: 0; top: 0; width: 100%;
-            box-shadow: none; max-width: 100%;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100% !important;
+            max-width: 100% !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            box-shadow: none !important;
+            border: none !important;
+          }
+          .ird-header {
+            border-bottom: 2px solid #000000 !important;
+          }
+          .ird-table thead th {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .grand-total-row {
+            border-top: 2px solid #000000 !important;
+            border-bottom: 2px solid #000000 !important;
           }
         }
-`}</style>
+      `}</style>
     </>
   )
 }

@@ -16,6 +16,8 @@ export default function SettingsPage() {
     companyPhone: '',
     companyEmail: '',
     companyAddress: '',
+    companyTin: '',
+    companyBrn: '',
     currency: 'LKR',
     taxRate: '0',
     invoicePrefix: 'INV-',
@@ -78,6 +80,8 @@ export default function SettingsPage() {
       companyPhone: { value: formData.companyPhone, group: 'GENERAL' },
       companyEmail: { value: formData.companyEmail, group: 'GENERAL' },
       companyAddress: { value: formData.companyAddress, group: 'GENERAL' },
+      companyTin: { value: formData.companyTin || '', group: 'GENERAL' },
+      companyBrn: { value: formData.companyBrn || '', group: 'GENERAL' },
       currency: { value: formData.currency, group: 'FINANCIAL' },
       taxRate: { value: formData.taxRate, group: 'FINANCIAL' },
       invoicePrefix: { value: formData.invoicePrefix, group: 'INVOICE' },
@@ -216,6 +220,19 @@ export default function SettingsPage() {
                   <div className="form-group">
                     <label className="form-label">Business Address</label>
                     <textarea className="form-input" name="companyAddress" value={formData.companyAddress} onChange={handleChange} rows={3} />
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div className="form-group">
+                      <label className="form-label">Taxpayer Identification Number (TIN)</label>
+                      <input type="text" className="form-input" name="companyTin" value={formData.companyTin || ''} onChange={handleChange} placeholder="e.g. 102345678" />
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>IRD Registered TIN for invoices</div>
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Business Registration Number (BRN)</label>
+                      <input type="text" className="form-input" name="companyBrn" value={formData.companyBrn || ''} onChange={handleChange} placeholder="e.g. PV-00123456" />
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Company / Business Reg No</div>
+                    </div>
                   </div>
                 </div>
               )}

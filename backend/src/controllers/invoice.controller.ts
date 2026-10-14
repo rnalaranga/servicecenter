@@ -36,12 +36,18 @@ export const getInvoiceById = async (req: Request, res: Response) => {
         customer: true,
         items: true,
         payments: { orderBy: { createdAt: 'desc' } },
-        jobCards: { include: { jobCard: true } }
+        jobCards: { include: { jobCard: { include: { vehicle: true } } } }
       }
     });
 
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-    res.json(invoice);
+
+    let vehicle: any = invoice.jobCards?.[0]?.jobCard?.vehicle || null;
+    if (!vehicle && invoice.vehicleId) {
+      vehicle = await prisma.vehicle.findUnique({ where: { id: invoice.vehicleId } });
+    }
+
+    res.json({ ...invoice, vehicle });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch invoice' });
   }

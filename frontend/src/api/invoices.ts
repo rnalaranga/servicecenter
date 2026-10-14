@@ -35,8 +35,10 @@ export interface Invoice {
   amountPaid: number;
   balance: number;
   notes?: string | null;
+  terms?: string | null;
   
   customer?: Customer;
+  vehicle?: any;
   items?: InvoiceItem[];
   payments?: CustomerPayment[];
   jobCards?: { jobCard: any }[];
