@@ -36,3 +36,8 @@ export const updateSettings = async (settings: Record<string, { value: string, g
   const { data } = await api.put('/system/settings', settings);
   return data;
 };
+
+export const fixDatabase = async (): Promise<{ success: boolean; message: string; output?: string; details?: string }> => {
+  const { data } = await api.post('/system/fix-database');
+  return data;
+};

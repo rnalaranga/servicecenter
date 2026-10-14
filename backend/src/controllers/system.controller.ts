@@ -1,5 +1,8 @@
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
 
 export const getAuditLogs = async (req: Request, res: Response) => {
   try {
@@ -68,5 +71,39 @@ export const updateSettings = async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update settings' });
+  }
+};
+
+export const fixDatabase = async (req: Request, res: Response) => {
+  try {
+    const backendRoot = path.resolve(__dirname, '../../');
+    const localPrisma = path.join(backendRoot, 'node_modules', '.bin', 'prisma');
+    const cmd = fs.existsSync(localPrisma) ? `"${localPrisma}" db push` : 'npx prisma db push';
+
+    console.log(`[Database Fix] Executing "${cmd}" in ${backendRoot}...`);
+
+    exec(cmd, { cwd: backendRoot, env: process.env }, (error, stdout, stderr) => {
+      if (error) {
+        console.error('[Database Fix Error]', error, stderr);
+        return res.status(500).json({
+          success: false,
+          error: 'Database sync failed',
+          details: stderr || stdout || error.message
+        });
+      }
+
+      console.log('[Database Fix Success]', stdout);
+      return res.json({
+        success: true,
+        message: 'Database structure synced and fixed successfully without data loss.',
+        output: stdout
+      });
+    });
+  } catch (error: any) {
+    console.error('[Database Fix Exception]', error);
+    res.status(500).json({
+      success: false,
+      error: error?.message || 'Failed to execute database sync'
+    });
   }
 };

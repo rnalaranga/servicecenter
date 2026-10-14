@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Save, Building2, Banknote, FileText, Image } from 'lucide-react'
+import { Save, Building2, Banknote, FileText, Image, Database, CheckCircle2, AlertCircle } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getSettings, updateSettings } from '@/api/system'
+import { getSettings, updateSettings, fixDatabase } from '@/api/system'
+import { useToast } from '@/contexts/ToastContext'
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
+  const { success: toastSuccess, error: toastError } = useToast()
   const [activeTab, setActiveTab] = useState('general')
+  const [isFixingDb, setIsFixingDb] = useState(false)
+  const [dbSyncResult, setDbSyncResult] = useState<{ success: boolean; message: string; output?: string } | null>(null)
   
   const [formData, setFormData] = useState<Record<string, string>>({
     companyName: 'Golden Auto Detail ERP',
@@ -34,9 +38,36 @@ export default function SettingsPage() {
     mutationFn: updateSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
-      alert('Settings saved successfully!')
+      toastSuccess('Settings Saved', 'Settings updated successfully!')
+    },
+    onError: () => {
+      toastError('Save Failed', 'Failed to update settings')
     }
   })
+
+  const handleFixDatabase = async () => {
+    if (!confirm('This will synchronize and repair all database tables according to the schema without deleting your data. Do you want to proceed?')) {
+      return
+    }
+    setIsFixingDb(true)
+    setDbSyncResult(null)
+    try {
+      const res = await fixDatabase()
+      if (res.success) {
+        toastSuccess('Database Fixed', res.message || 'Database structure synchronized successfully!')
+        setDbSyncResult({ success: true, message: res.message, output: res.output })
+      } else {
+        toastError('Database Fix Failed', res.message || 'Could not sync database')
+        setDbSyncResult({ success: false, message: res.message, output: res.details })
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.details || err.response?.data?.error || err.message || 'Failed to fix database'
+      toastError('Database Error', msg)
+      setDbSyncResult({ success: false, message: 'Failed to fix database', output: msg })
+    } finally {
+      setIsFixingDb(false)
+    }
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -84,14 +115,26 @@ export default function SettingsPage() {
           <h1 className="page-title">System Settings</h1>
           <p className="page-subtitle">Configure application defaults, company details, and preferences</p>
         </div>
-        <button 
-          className="btn btn-primary" 
-          onClick={handleSubmit} 
-          disabled={mutation.isPending}
-          style={{ gap: 8 }}
-        >
-          <Save size={18} /> {mutation.isPending ? 'Saving...' : 'Save Settings'}
-        </button>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button 
+            type="button"
+            className="btn btn-secondary" 
+            onClick={handleFixDatabase} 
+            disabled={isFixingDb}
+            style={{ gap: 8 }}
+            title="Repair and sync database tables without losing data"
+          >
+            <Database size={18} /> {isFixingDb ? 'Fixing Database...' : 'Fix DB'}
+          </button>
+          <button 
+            className="btn btn-primary" 
+            onClick={handleSubmit} 
+            disabled={mutation.isPending}
+            style={{ gap: 8 }}
+          >
+            <Save size={18} /> {mutation.isPending ? 'Saving...' : 'Save Settings'}
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
@@ -102,6 +145,7 @@ export default function SettingsPage() {
           {/* Tabs Sidebar */}
           <div className="card" style={{ padding: 8 }}>
             <button 
+              type="button"
               className={`btn btn-ghost ${activeTab === 'general' ? 'active' : ''}`} 
               style={{ width: '100%', justifyContent: 'flex-start', gap: 12, marginBottom: 4, background: activeTab === 'general' ? 'var(--hover)' : 'transparent' }}
               onClick={() => setActiveTab('general')}
@@ -109,6 +153,7 @@ export default function SettingsPage() {
               <Building2 size={18} /> General Info
             </button>
             <button 
+              type="button"
               className={`btn btn-ghost ${activeTab === 'financial' ? 'active' : ''}`} 
               style={{ width: '100%', justifyContent: 'flex-start', gap: 12, marginBottom: 4, background: activeTab === 'financial' ? 'var(--hover)' : 'transparent' }}
               onClick={() => setActiveTab('financial')}
@@ -116,19 +161,30 @@ export default function SettingsPage() {
               <Banknote size={18} /> Financial Defaults
             </button>
             <button 
+              type="button"
               className={`btn btn-ghost ${activeTab === 'invoice' ? 'active' : ''}`} 
-              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, background: activeTab === 'invoice' ? 'var(--hover)' : 'transparent' }}
+              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, marginBottom: 4, background: activeTab === 'invoice' ? 'var(--hover)' : 'transparent' }}
               onClick={() => setActiveTab('invoice')}
             >
               <FileText size={18} /> Invoice Settings
             </button>
 
             <button 
+              type="button"
               className={`btn btn-ghost ${activeTab === 'logos' ? 'active' : ''}`} 
-              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, background: activeTab === 'logos' ? 'var(--hover)' : 'transparent' }}
+              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, marginBottom: 4, background: activeTab === 'logos' ? 'var(--hover)' : 'transparent' }}
               onClick={() => setActiveTab('logos')}
             >
               <Image size={18} /> Logos
+            </button>
+
+            <button 
+              type="button"
+              className={`btn btn-ghost ${activeTab === 'database' ? 'active' : ''}`} 
+              style={{ width: '100%', justifyContent: 'flex-start', gap: 12, background: activeTab === 'database' ? 'var(--hover)' : 'transparent' }}
+              onClick={() => setActiveTab('database')}
+            >
+              <Database size={18} /> Database
             </button>
           </div>
 
@@ -236,6 +292,85 @@ export default function SettingsPage() {
                     <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Specifically for invoices and printed documents. If empty, the Light logo will be used.</div>
                   </div>
                   
+                </div>
+              )}
+
+              {activeTab === 'database' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div>
+                    <h3 style={{ fontSize: 16, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
+                      Database Maintenance & Schema Repair
+                    </h3>
+                    <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 8, lineHeight: 1.5 }}>
+                      Synchronize and repair database tables with the application schema. This creates missing tables (e.g. Categories, new modules) and columns automatically without deleting or resetting your existing records.
+                    </p>
+                  </div>
+
+                  <div style={{
+                    padding: 20,
+                    borderRadius: 8,
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 16
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>Database Sync (Fix DB)</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          Executes schema push to create missing tables and columns safely without data loss.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={handleFixDatabase}
+                        disabled={isFixingDb}
+                        style={{ gap: 8 }}
+                      >
+                        <Database size={16} />
+                        {isFixingDb ? 'Fixing Database...' : 'Fix Database Now'}
+                      </button>
+                    </div>
+
+                    {dbSyncResult && (
+                      <div style={{
+                        marginTop: 8,
+                        padding: 14,
+                        borderRadius: 6,
+                        background: dbSyncResult.success ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        border: `1px solid ${dbSyncResult.success ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`
+                      }}>
+                        <div style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: dbSyncResult.success ? '#16a34a' : '#dc2626',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginBottom: dbSyncResult.output ? 8 : 0
+                        }}>
+                          {dbSyncResult.success ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
+                          {dbSyncResult.message}
+                        </div>
+                        {dbSyncResult.output && (
+                          <pre style={{
+                            margin: 0,
+                            padding: 12,
+                            background: '#111827',
+                            color: '#f3f4f6',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            overflowX: 'auto',
+                            whiteSpace: 'pre-wrap'
+                          }}>
+                            {dbSyncResult.output}
+                          </pre>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
