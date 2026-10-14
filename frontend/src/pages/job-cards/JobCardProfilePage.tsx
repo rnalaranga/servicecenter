@@ -109,6 +109,24 @@ export default function JobCardProfilePage() {
     onError: () => error('Add Failed', 'Could not record external purchase.')
   })
 
+  const deleteJobMut = useMutation({
+    mutationFn: () => deleteJobCard(id!),
+    onSuccess: () => {
+      success('Job Card Deleted', 'Job card has been deleted successfully.')
+      queryClient.invalidateQueries({ queryKey: ['jobcards'] })
+      navigate('/job-cards')
+    },
+    onError: (err: any) => {
+      error('Delete Failed', err.response?.data?.error || 'Could not delete job card.')
+    }
+  })
+
+  const handleDeleteJob = () => {
+    if (confirm(`Are you sure you want to delete job card ${job?.jobNumber}? This action cannot be undone.`)) {
+      deleteJobMut.mutate()
+    }
+  }
+
   if (isLoading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', padding: '60px' }}>
@@ -126,24 +144,6 @@ export default function JobCardProfilePage() {
         </div>
       </div>
     )
-  }
-
-  const deleteJobMut = useMutation({
-    mutationFn: () => deleteJobCard(id!),
-    onSuccess: () => {
-      success('Job Card Deleted', 'Job card has been deleted successfully.')
-      queryClient.invalidateQueries({ queryKey: ['jobcards'] })
-      navigate('/job-cards')
-    },
-    onError: (err: any) => {
-      error('Delete Failed', err.response?.data?.error || 'Could not delete job card.')
-    }
-  })
-
-  const handleDeleteJob = () => {
-    if (confirm(`Are you sure you want to delete job card ${job?.jobNumber}? This action cannot be undone.`)) {
-      deleteJobMut.mutate()
-    }
   }
 
   const v = job.vehicle
