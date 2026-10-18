@@ -36,6 +36,8 @@ export interface Invoice {
   balance: number;
   notes?: string | null;
   terms?: string | null;
+  bankDetails?: string | null;
+  isQuotation?: boolean;
   
   customer?: Customer;
   vehicle?: any;
@@ -60,14 +62,33 @@ export const generateInvoiceFromJobCard = async (jobCardId: string): Promise<Inv
 };
 
 export const createDirectInvoice = async (payload: { 
-  customerId: number, 
-  notes?: string, 
-  globalDiscount?: number,
-  paymentAmount?: number,
-  paymentMethod?: string,
-  items: { description: string, quantity: number, unitPrice: number, discount?: number }[] 
+  customerId: number;
+  vehicleId?: number | null;
+  notes?: string;
+  terms?: string;
+  bankDetails?: string;
+  isQuotation?: boolean;
+  globalDiscount?: number;
+  paymentAmount?: number;
+  paymentMethod?: string;
+  items: { description: string; quantity: number; unitPrice: number; discount?: number }[];
 }): Promise<Invoice> => {
   const { data } = await api.post('/invoices', payload);
+  return data;
+};
+
+export const updateInvoice = async (id: string | number, payload: {
+  terms?: string;
+  bankDetails?: string;
+  notes?: string;
+  vehicleId?: number | null;
+}): Promise<Invoice> => {
+  const { data } = await api.put(`/invoices/${id}`, payload);
+  return data;
+};
+
+export const convertQuotationToInvoice = async (id: string | number): Promise<{ message: string; invoice: Invoice }> => {
+  const { data } = await api.post(`/invoices/${id}/convert-to-invoice`);
   return data;
 };
 

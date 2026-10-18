@@ -2,15 +2,58 @@ import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { z } from 'zod';
 
-// Utility to generate Invoice Number
-async function generateInvoiceNumber() {
-  const count = await prisma.invoice.count();
-  return `INV-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+// Utility to generate unique Invoice / Quotation Number
+async function generateInvoiceNumber(isQuotation = false) {
+  const prefix = isQuotation ? 'QUO' : 'INV';
+  const year = new Date().getFullYear();
+  const searchPrefix = `${prefix}-${year}-`;
+  
+  const last = await prisma.invoice.findFirst({
+    where: { invoiceNumber: { startsWith: searchPrefix } },
+    orderBy: { invoiceNumber: 'desc' },
+  });
+
+  let nextNum = 1;
+  if (last) {
+    const parts = last.invoiceNumber.split('-');
+    const parsed = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(parsed)) {
+      nextNum = parsed + 1;
+    }
+  }
+
+  while (true) {
+    const candidate = `${searchPrefix}${String(nextNum).padStart(4, '0')}`;
+    const exists = await prisma.invoice.findUnique({ where: { invoiceNumber: candidate } });
+    if (!exists) return candidate;
+    nextNum++;
+  }
 }
 
 async function generatePaymentNumber() {
-  const count = await prisma.customerPayment.count();
-  return `PAY-${new Date().getFullYear()}-${String(count + 1).padStart(4, '0')}`;
+  const year = new Date().getFullYear();
+  const searchPrefix = `PAY-${year}-`;
+  
+  const last = await prisma.customerPayment.findFirst({
+    where: { paymentNumber: { startsWith: searchPrefix } },
+    orderBy: { paymentNumber: 'desc' },
+  });
+
+  let nextNum = 1;
+  if (last) {
+    const parts = last.paymentNumber.split('-');
+    const parsed = parseInt(parts[parts.length - 1], 10);
+    if (!isNaN(parsed)) {
+      nextNum = parsed + 1;
+    }
+  }
+
+  while (true) {
+    const candidate = `${searchPrefix}${String(nextNum).padStart(4, '0')}`;
+    const exists = await prisma.customerPayment.findUnique({ where: { paymentNumber: candidate } });
+    if (!exists) return candidate;
+    nextNum++;
+  }
 }
 
 export const getInvoices = async (req: Request, res: Response) => {
@@ -138,18 +181,21 @@ export const createInvoiceFromJobCard = async (req: Request, res: Response) => {
 };
 
 const directInvoiceSchema = z.object({
-  customerId: z.number(),
+  customerId: z.number().min(1, 'Please select a valid customer'),
   vehicleId: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
+  terms: z.string().optional().nullable(),
+  bankDetails: z.string().optional().nullable(),
+  isQuotation: z.boolean().optional().default(false),
   globalDiscount: z.number().optional().default(0),
   paymentAmount: z.number().optional().default(0),
   paymentMethod: z.string().optional().default('CASH'),
   items: z.array(z.object({
-    description: z.string().min(1),
-    quantity: z.number().min(0.01),
-    unitPrice: z.number().min(0),
+    description: z.string().min(1, 'Item description is required'),
+    quantity: z.number().min(0.01, 'Quantity must be at least 0.01'),
+    unitPrice: z.number().min(0, 'Price must be >= 0'),
     discount: z.number().optional().default(0),
-  })).min(1),
+  })).min(1, 'At least one item is required'),
 });
 
 export const createDirectInvoice = async (req: Request, res: Response) => {
@@ -161,17 +207,17 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
     let totalAmount = 0;
 
     const invoiceItems = data.items.map((item, idx) => {
-      const lineTotal = (item.quantity * item.unitPrice) - item.discount;
+      const lineTotal = (item.quantity * item.unitPrice) - (item.discount || 0);
       subtotal += (item.quantity * item.unitPrice);
-      totalDiscount += item.discount;
+      totalDiscount += (item.discount || 0);
       totalAmount += lineTotal;
 
       return {
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount,
-        taxAmount: 0, // Simplified tax
+        discount: item.discount || 0,
+        taxAmount: 0,
         total: lineTotal,
         sortOrder: idx
       };
@@ -181,14 +227,17 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
     totalAmount -= data.globalDiscount;
     if (totalAmount < 0) totalAmount = 0;
 
-    const invoiceNumber = await generateInvoiceNumber();
+    const isQuotation = !!data.isQuotation;
+    const invoiceNumber = await generateInvoiceNumber(isQuotation);
 
     const invoice = await prisma.$transaction(async (tx) => {
-      // 1. Create Invoice
-      const newPaid = Math.min(data.paymentAmount, totalAmount);
+      const newPaid = isQuotation ? 0 : Math.min(data.paymentAmount, totalAmount);
       const newBalance = totalAmount - newPaid;
-      const invStatus = newBalance <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'UNPAID');
+      const invStatus = isQuotation 
+        ? 'QUOTATION' 
+        : (newBalance <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : 'UNPAID'));
 
+      // 1. Create Invoice / Quotation record
       const inv = await tx.invoice.create({
         data: {
           invoiceNumber,
@@ -204,62 +253,166 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
           amountPaid: newPaid,
           status: invStatus,
           notes: data.notes || null,
+          terms: data.terms || null,
+          bankDetails: data.bankDetails || null,
+          isQuotation,
           items: {
             create: invoiceItems
           }
         }
       });
 
-      // 2. Add to Customer Ledger for Invoice (Debit)
-      await tx.customerLedger.create({
-        data: {
-          customerId: data.customerId,
-          date: new Date(),
-          type: 'INVOICE',
-          invoiceId: inv.id,
-          description: `Invoice ${invoiceNumber}`,
-          debit: inv.total,
-          credit: 0,
-          balance: 0
-        }
-      });
-
-      // 3. Process Initial Payment if provided
-      if (newPaid > 0) {
-        const paymentNumber = await generatePaymentNumber();
-        const pay = await tx.customerPayment.create({
-          data: {
-            paymentNumber,
-            customerId: data.customerId,
-            invoiceId: inv.id,
-            date: new Date(),
-            amount: newPaid,
-            method: data.paymentMethod
-          }
+      // 2. Only post to Customer Ledger if it is an actual Invoice (Quotations are non-binding estimates)
+      if (!isQuotation) {
+        const lastLedger = await tx.customerLedger.findFirst({
+          where: { customerId: data.customerId },
+          orderBy: { id: 'desc' }
         });
+        let runningBalance = lastLedger ? Number(lastLedger.balance) : 0;
+        runningBalance += totalAmount;
 
         await tx.customerLedger.create({
           data: {
             customerId: data.customerId,
             date: new Date(),
-            type: 'PAYMENT',
-            paymentId: pay.id,
+            type: 'INVOICE',
             invoiceId: inv.id,
-            description: `Payment for ${invoiceNumber}`,
-            debit: 0,
-            credit: newPaid,
-            balance: 0
+            refNumber: invoiceNumber,
+            description: `Invoice ${invoiceNumber}`,
+            debit: inv.total,
+            credit: 0,
+            balance: runningBalance
           }
         });
+
+        // 3. Process Initial Payment if provided
+        if (newPaid > 0) {
+          runningBalance -= newPaid;
+          const paymentNumber = await generatePaymentNumber();
+          const pay = await tx.customerPayment.create({
+            data: {
+              paymentNumber,
+              customerId: data.customerId,
+              invoiceId: inv.id,
+              date: new Date(),
+              amount: newPaid,
+              method: data.paymentMethod
+            }
+          });
+
+          await tx.customerLedger.create({
+            data: {
+              customerId: data.customerId,
+              date: new Date(),
+              type: 'PAYMENT',
+              paymentId: pay.id,
+              invoiceId: inv.id,
+              refNumber: paymentNumber,
+              description: `Payment for ${invoiceNumber}`,
+              debit: 0,
+              credit: newPaid,
+              balance: runningBalance
+            }
+          });
+        }
       }
 
       return inv;
     });
 
     res.status(201).json(invoice);
-  } catch (error) {
-    if (error instanceof z.ZodError) res.status(400).json({ error: error.errors });
-    else res.status(500).json({ error: 'Failed to create direct invoice' });
+  } catch (error: any) {
+    console.error('[createDirectInvoice Error]', error);
+    if (error instanceof z.ZodError) {
+      const msg = error.errors.map(e => e.message).join(', ');
+      res.status(400).json({ error: msg });
+    } else {
+      res.status(500).json({ error: error.message || 'Failed to create direct invoice' });
+    }
+  }
+};
+
+export const convertQuotationToInvoice = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const invoiceId = Number(id);
+
+    const quotation = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+    });
+
+    if (!quotation) return res.status(404).json({ error: 'Document not found' });
+    if (!quotation.isQuotation && quotation.status !== 'QUOTATION') {
+      return res.status(400).json({ error: 'Document is already an invoice' });
+    }
+
+    const newInvoiceNumber = await generateInvoiceNumber(false);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // 1. Update quotation to invoice
+      const inv = await tx.invoice.update({
+        where: { id: invoiceId },
+        data: {
+          invoiceNumber: newInvoiceNumber,
+          isQuotation: false,
+          status: 'UNPAID',
+          date: new Date(),
+          dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          notes: quotation.notes ? `${quotation.notes} (Converted from ${quotation.invoiceNumber})` : `Converted from ${quotation.invoiceNumber}`,
+        }
+      });
+
+      // 2. Post to Customer Ledger
+      const lastLedger = await tx.customerLedger.findFirst({
+        where: { customerId: quotation.customerId },
+        orderBy: { id: 'desc' }
+      });
+      let runningBalance = lastLedger ? Number(lastLedger.balance) : 0;
+      runningBalance += Number(quotation.total);
+
+      await tx.customerLedger.create({
+        data: {
+          customerId: quotation.customerId,
+          date: new Date(),
+          type: 'INVOICE',
+          invoiceId: inv.id,
+          refNumber: newInvoiceNumber,
+          description: `Invoice ${newInvoiceNumber} (from ${quotation.invoiceNumber})`,
+          debit: inv.total,
+          credit: 0,
+          balance: runningBalance
+        }
+      });
+
+      return inv;
+    });
+
+    res.json({ message: 'Quotation converted to Invoice successfully', invoice: updated });
+  } catch (error: any) {
+    console.error('[convertQuotationToInvoice Error]', error);
+    res.status(500).json({ error: error.message || 'Failed to convert quotation' });
+  }
+};
+
+export const updateInvoice = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { terms, bankDetails, notes, vehicleId } = req.body;
+
+    const updated = await prisma.invoice.update({
+      where: { id: Number(id) },
+      data: {
+        ...(terms !== undefined && { terms }),
+        ...(bankDetails !== undefined && { bankDetails }),
+        ...(notes !== undefined && { notes }),
+        ...(vehicleId !== undefined && { vehicleId: vehicleId ? Number(vehicleId) : null }),
+      }
+    });
+
+    res.json(updated);
+  } catch (error: any) {
+    console.error('[updateInvoice Error]', error);
+    res.status(500).json({ error: error.message || 'Failed to update invoice' });
   }
 };
 

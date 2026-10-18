@@ -12,7 +12,7 @@ export default function SettingsPage() {
   const [dbSyncResult, setDbSyncResult] = useState<{ success: boolean; message: string; output?: string } | null>(null)
   
   const [formData, setFormData] = useState<Record<string, string>>({
-    companyName: 'Golden Auto Detail ERP',
+    companyName: 'Auto Elevate - Golden Auto Detail',
     companyPhone: '',
     companyEmail: '',
     companyAddress: '',
@@ -21,7 +21,12 @@ export default function SettingsPage() {
     currency: 'LKR',
     taxRate: '0',
     invoicePrefix: 'INV-',
-    invoiceTerms: 'Thank you for your business. Payment is due upon receipt.'
+    invoiceTerms: '1. All payments are due upon receipt.\n2. Goods & services once delivered and accepted in good order are non-refundable.\n3. Make all cheques payable to the company name.',
+    quotationTerms: '1. This quotation is valid for 14 days from the date of issue.\n2. Prices are subject to vehicle physical inspection upon arrival.\n3. 50% advance payment required upon job confirmation.',
+    bankName: 'Commercial Bank of Ceylon',
+    bankAccountName: 'Auto Elevate (Pvt) Ltd',
+    bankAccountNumber: '100012345678',
+    bankBranch: 'Ja-Ela Branch',
   })
 
   const { data: settings = {}, isLoading } = useQuery({ 
@@ -84,13 +89,16 @@ export default function SettingsPage() {
       companyBrn: { value: formData.companyBrn || '', group: 'GENERAL' },
       currency: { value: formData.currency, group: 'FINANCIAL' },
       taxRate: { value: formData.taxRate, group: 'FINANCIAL' },
+      bankName: { value: formData.bankName || '', group: 'FINANCIAL' },
+      bankAccountName: { value: formData.bankAccountName || '', group: 'FINANCIAL' },
+      bankAccountNumber: { value: formData.bankAccountNumber || '', group: 'FINANCIAL' },
+      bankBranch: { value: formData.bankBranch || '', group: 'FINANCIAL' },
       invoicePrefix: { value: formData.invoicePrefix, group: 'INVOICE' },
-      
       invoiceTerms: { value: formData.invoiceTerms, group: 'INVOICE' },
+      quotationTerms: { value: formData.quotationTerms, group: 'INVOICE' },
       logoDark: { value: formData.logoDark, group: 'BRANDING' },
       logoLight: { value: formData.logoLight, group: 'BRANDING' },
       invoiceLogo: { value: formData.invoiceLogo, group: 'BRANDING' },
-
     }
 
     mutation.mutate(payload)
@@ -256,23 +264,51 @@ export default function SettingsPage() {
                       <input type="number" step="0.01" min="0" max="100" className="form-input" name="taxRate" value={formData.taxRate} onChange={handleChange} />
                     </div>
                   </div>
+
+                  <h4 style={{ fontSize: 14, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 8, marginTop: 10 }}>
+                    Company Bank Payment Details (For Invoices & Quotations)
+                  </h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    <div className="form-group">
+                      <label className="form-label">Bank Name</label>
+                      <input type="text" className="form-input" name="bankName" value={formData.bankName || ''} onChange={handleChange} placeholder="e.g. Commercial Bank of Ceylon" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Account Name</label>
+                      <input type="text" className="form-input" name="bankAccountName" value={formData.bankAccountName || ''} onChange={handleChange} placeholder="e.g. Auto Elevate (Pvt) Ltd" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Account Number</label>
+                      <input type="text" className="form-input" name="bankAccountNumber" value={formData.bankAccountNumber || ''} onChange={handleChange} placeholder="e.g. 100012345678" />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Branch</label>
+                      <input type="text" className="form-input" name="bankBranch" value={formData.bankBranch || ''} onChange={handleChange} placeholder="e.g. Ja-Ela Branch" />
+                    </div>
+                  </div>
                 </div>
               )}
 
               {activeTab === 'invoice' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-                  <h3 style={{ fontSize: 16, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>Invoice Configuration</h3>
+                  <h3 style={{ fontSize: 16, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>Invoice & Quotation Configuration</h3>
                   
                   <div className="form-group" style={{ maxWidth: 300 }}>
                     <label className="form-label">Invoice Number Prefix</label>
                     <input type="text" className="form-input" name="invoicePrefix" value={formData.invoicePrefix} onChange={handleChange} />
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>e.g., INV-2024-001</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>e.g., INV-2026-001</div>
                   </div>
 
                   <div className="form-group">
-                    <label className="form-label">Default Terms & Conditions</label>
+                    <label className="form-label">Default Invoice Terms & Conditions</label>
                     <textarea className="form-input" name="invoiceTerms" value={formData.invoiceTerms} onChange={handleChange} rows={4} />
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>This text will be appended to the bottom of all generated invoices.</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>This text will appear in the TERMS & CONDITIONS block on all invoices.</div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Default Quotation / Estimate Terms & Conditions</label>
+                    <textarea className="form-input" name="quotationTerms" value={formData.quotationTerms || ''} onChange={handleChange} rows={4} />
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>This text will appear in the TERMS & CONDITIONS block on all quotations.</div>
                   </div>
                 </div>
               )}

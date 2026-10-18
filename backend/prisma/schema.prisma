@@ -593,6 +593,8 @@ model Invoice {
   balance       Decimal       @default(0) 
   notes         String?       
   terms         String?       
+  bankDetails   String?       
+  isQuotation   Boolean       @default(false)
   createdById   Int?
   cancelledAt   DateTime?
   cancelReason  String?       

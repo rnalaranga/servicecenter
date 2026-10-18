@@ -128,11 +128,21 @@ export const fixDatabase = async (req: Request, res: Response) => {
 
         // 3. Ensure Default Settings exist if not set
         const defaultSettings = [
-          { key: 'companyName', value: 'Golden Auto Detail ERP', group: 'GENERAL' },
+          { key: 'companyName', value: 'Auto Elevate - Golden Auto Detail', group: 'GENERAL' },
+          { key: 'companyPhone', value: '+94 77 123 4567', group: 'GENERAL' },
+          { key: 'companyEmail', value: 'info@autoelevate.lk', group: 'GENERAL' },
+          { key: 'companyAddress', value: 'No. 4, Thudella, Ja-Ela, Sri Lanka', group: 'GENERAL' },
+          { key: 'companyTin', value: '102345678-7000', group: 'GENERAL' },
+          { key: 'companyBrn', value: 'PV-00284759', group: 'GENERAL' },
           { key: 'currency', value: 'LKR', group: 'FINANCIAL' },
           { key: 'taxRate', value: '0', group: 'FINANCIAL' },
+          { key: 'bankName', value: 'Commercial Bank of Ceylon', group: 'FINANCIAL' },
+          { key: 'bankAccountName', value: 'Auto Elevate (Pvt) Ltd', group: 'FINANCIAL' },
+          { key: 'bankAccountNumber', value: '100012345678', group: 'FINANCIAL' },
+          { key: 'bankBranch', value: 'Ja-Ela Branch', group: 'FINANCIAL' },
           { key: 'invoicePrefix', value: 'INV-', group: 'INVOICE' },
-          { key: 'invoiceTerms', value: 'Thank you for your business. Payment is due upon receipt.', group: 'INVOICE' },
+          { key: 'invoiceTerms', value: '1. All payments are due upon receipt.\n2. Goods & services once delivered and accepted in good order are non-refundable.\n3. Make all cheques payable to Auto Elevate (Pvt) Ltd.', group: 'INVOICE' },
+          { key: 'quotationTerms', value: '1. This quotation is valid for 14 days from the date of issue.\n2. Prices are subject to vehicle physical inspection upon arrival.\n3. 50% advance payment required upon job confirmation.', group: 'INVOICE' },
         ];
 
         for (const s of defaultSettings) {

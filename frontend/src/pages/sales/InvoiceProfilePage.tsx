@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2 } from 'lucide-react'
+import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2, FileCheck } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getInvoiceById, recordPayment, deleteInvoice } from '@/api/invoices'
+import { getInvoiceById, recordPayment, deleteInvoice, convertQuotationToInvoice } from '@/api/invoices'
 import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/contexts/ToastContext'
@@ -85,15 +85,30 @@ export default function InvoiceProfilePage() {
     mutationFn: () => deleteInvoice(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      success('Invoice Deleted', 'Invoice has been successfully deleted.')
+      success('Document Deleted', 'Document has been successfully deleted.')
       navigate('/invoices')
     },
-    onError: () => error('Delete Failed', 'Could not delete invoice.')
+    onError: () => error('Delete Failed', 'Could not delete document.')
+  })
+
+  const convertMut = useMutation({
+    mutationFn: () => convertQuotationToInvoice(id!),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      success('Converted to Invoice', data.message || 'Quotation successfully converted to active invoice.')
+      if (data.invoice?.id) {
+        navigate(`/invoices/${data.invoice.id}`, { replace: true })
+      }
+    },
+    onError: (err: any) => {
+      error('Conversion Failed', err?.response?.data?.error || 'Failed to convert quotation to invoice.')
+    }
   })
 
   if (isLoading) return <div style={{ padding: 40, textAlign: 'center' }}>Loading...</div>
   if (!invoice) return <div style={{ padding: 40, textAlign: 'center' }}>Invoice not found</div>
 
+  const isQuo = Boolean(invoice.isQuotation || invoice.status === 'QUOTATION' || invoice.invoiceNumber?.startsWith('QUO-'))
   const isPaid = invoice.status === 'PAID'
   const isPartial = invoice.status === 'PARTIALLY_PAID' || (Number(invoice.amountPaid) > 0 && Number(invoice.balance) > 0)
 
@@ -104,6 +119,14 @@ export default function InvoiceProfilePage() {
   const totalDiscountAmount = Number(invoice.discountAmount) || 0
   const subtotalAmount = Number(invoice.subtotal) > 0 ? Number(invoice.subtotal) : (Number(invoice.total) + totalDiscountAmount)
 
+  // Determine bank details string to display
+  const effectiveBankDetails = invoice.bankDetails || [
+    settings?.bankName ? `Bank: ${settings.bankName}` : '',
+    settings?.bankAccountName ? `Account Name: ${settings.bankAccountName}` : '',
+    settings?.bankAccountNumber ? `Account Number: ${settings.bankAccountNumber}` : '',
+    settings?.bankBranch ? `Branch: ${settings.bankBranch}` : '',
+  ].filter(Boolean).join('\n')
+
   return (
     <>
       <div className="no-print" style={{ maxWidth: 850, margin: '0 auto', marginBottom: 20 }}>
@@ -112,22 +135,36 @@ export default function InvoiceProfilePage() {
             <ArrowLeft size={14} /> Back to Invoices
           </button>
           <div style={{ flex: 1 }} />
+          {isQuo && (
+            <button 
+              className="btn btn-primary btn-sm" 
+              style={{ gap: 6, background: '#2563eb', borderColor: '#2563eb' }}
+              onClick={() => {
+                if (confirm(`Convert Quotation #${invoice.invoiceNumber} into an official Tax Invoice? This will assign an active Invoice number and record receivables.`)) {
+                  convertMut.mutate()
+                }
+              }}
+              disabled={convertMut.isPending}
+            >
+              <FileCheck size={14} /> {convertMut.isPending ? 'Converting...' : 'Convert to Invoice'}
+            </button>
+          )}
           <button 
             className="btn btn-secondary btn-sm" 
             style={{ color: 'var(--color-danger)', borderColor: 'var(--color-danger)', gap: 6 }}
             onClick={() => {
-              if (confirm(`Are you sure you want to delete invoice #${invoice.invoiceNumber}? All associated payments will also be deleted.`)) {
+              if (confirm(`Are you sure you want to delete ${isQuo ? 'quotation' : 'invoice'} #${invoice.invoiceNumber}? All associated records will also be deleted.`)) {
                 deleteMut.mutate()
               }
             }}
             disabled={deleteMut.isPending}
           >
-            <Trash2 size={14} /> {deleteMut.isPending ? 'Deleting...' : 'Delete Invoice'}
+            <Trash2 size={14} /> {deleteMut.isPending ? 'Deleting...' : `Delete ${isQuo ? 'Quotation' : 'Invoice'}`}
           </button>
           <button className="btn btn-secondary btn-sm" onClick={() => window.print()} style={{ gap: 6 }}>
-            <Printer size={14} /> Print Invoice
+            <Printer size={14} /> Print {isQuo ? 'Quotation' : 'Invoice'}
           </button>
-          {!isPaid && (
+          {!isQuo && !isPaid && (
             <button className="btn btn-primary btn-sm" onClick={() => {
               setPayAmount(String(invoice.balance))
               setShowPayModal(true)
@@ -171,11 +208,11 @@ export default function InvoiceProfilePage() {
           </div>
 
           <div className="ird-meta-info">
-            <div className="ird-title">INVOICE</div>
+            <div className="ird-title">{isQuo ? 'QUOTATION' : 'INVOICE'}</div>
             <table className="ird-meta-table">
               <tbody>
                 <tr>
-                  <td className="meta-label">Invoice No:</td>
+                  <td className="meta-label">{isQuo ? 'Quotation No:' : 'Invoice No:'}</td>
                   <td className="meta-value highlight">#{invoice.invoiceNumber}</td>
                 </tr>
                 <tr>
@@ -183,14 +220,14 @@ export default function InvoiceProfilePage() {
                   <td className="meta-value">{format(parseISO(invoice.date), 'dd/MM/yyyy')}</td>
                 </tr>
                 <tr>
-                  <td className="meta-label">Payment Terms:</td>
-                  <td className="meta-value">Due on Receipt</td>
+                  <td className="meta-label">{isQuo ? 'Validity:' : 'Payment Terms:'}</td>
+                  <td className="meta-value">{isQuo ? '14 Days from Date' : 'Due on Receipt'}</td>
                 </tr>
                 <tr>
                   <td className="meta-label">Status:</td>
                   <td className="meta-value">
-                    <span className={`status-pill ${isPaid ? 'paid' : isPartial ? 'partial' : 'unpaid'}`}>
-                      {isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
+                    <span className={`status-pill ${isQuo ? 'quotation' : isPaid ? 'paid' : isPartial ? 'partial' : 'unpaid'}`}>
+                      {isQuo ? 'QUOTATION' : isPaid ? 'PAID' : isPartial ? 'PARTIAL' : 'UNPAID'}
                     </span>
                   </td>
                 </tr>
@@ -307,9 +344,29 @@ export default function InvoiceProfilePage() {
             <div className="ird-notes-box">
               <div className="notes-title">TERMS & CONDITIONS:</div>
               <div className="notes-body">
-                {invoice.terms || settings?.invoiceTerms || '1. All payments are due upon receipt.\n2. Goods & services once delivered and accepted in good order are non-refundable.\n3. Make all cheques payable to the company name.'}
+                {invoice.terms || (isQuo 
+                  ? (settings?.quotationTerms || '1. This quotation is valid for 14 days from the date of issue.\n2. Prices are subject to vehicle physical inspection upon arrival.\n3. 50% advance payment required upon job confirmation.')
+                  : (settings?.invoiceTerms || '1. All payments are due upon receipt.\n2. Goods & services once delivered and accepted in good order are non-refundable.\n3. Make all cheques payable to the company name.'))}
               </div>
             </div>
+
+            {/* Bank Payment Details */}
+            {effectiveBankDetails && (
+              <div className="ird-notes-box" style={{ marginTop: 14 }}>
+                <div className="notes-title">BANK PAYMENT DETAILS:</div>
+                <div className="notes-body" style={{ whiteSpace: 'pre-line' }}>
+                  {effectiveBankDetails}
+                </div>
+              </div>
+            )}
+
+            {/* Document Notes */}
+            {invoice.notes && (
+              <div className="ird-notes-box" style={{ marginTop: 14 }}>
+                <div className="notes-title">SPECIAL NOTES / INSTRUCTIONS:</div>
+                <div className="notes-body" style={{ whiteSpace: 'pre-line' }}>{invoice.notes}</div>
+              </div>
+            )}
           </div>
 
           <div className="ird-summary-right">
@@ -333,23 +390,34 @@ export default function InvoiceProfilePage() {
                 )}
                 {/* STRICTLY NO TAX LINE HERE AS REQUESTED */}
                 <tr className="grand-total-row">
-                  <td className="tot-label">TOTAL AMOUNT DUE:</td>
+                  <td className="tot-label">{isQuo ? 'ESTIMATED TOTAL:' : 'TOTAL AMOUNT DUE:'}</td>
                   <td className="tot-value">
                     <span className="currency-unit">LKR</span> {Number(invoice.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
-                <tr>
-                  <td className="tot-label">Amount Paid:</td>
-                  <td className="tot-value">
-                    {Number(invoice.amountPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
-                <tr className="balance-row">
-                  <td className="tot-label">Balance Due:</td>
-                  <td className="tot-value">
-                    {Number(invoice.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </td>
-                </tr>
+                {!isQuo && (
+                  <>
+                    <tr>
+                      <td className="tot-label">Amount Paid:</td>
+                      <td className="tot-value">
+                        {Number(invoice.amountPaid).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                    <tr className="balance-row">
+                      <td className="tot-label">Balance Due:</td>
+                      <td className="tot-value">
+                        {Number(invoice.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  </>
+                )}
+                {isQuo && (
+                  <tr>
+                    <td colSpan={2} style={{ textAlign: 'center', fontSize: 11, color: '#6b7280', paddingTop: 10, fontStyle: 'italic' }}>
+                      * Official Estimate / Quotation — Not a Tax Invoice *
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -359,8 +427,8 @@ export default function InvoiceProfilePage() {
         <div className="ird-signatures-grid">
           <div className="sig-block">
             <div className="sig-line"></div>
-            <div className="sig-label">Customer's Signature / Received By</div>
-            <div className="sig-sub">Goods / Services received in good order & condition</div>
+            <div className="sig-label">{isQuo ? 'Customer Approval / Acceptance' : "Customer's Signature / Received By"}</div>
+            <div className="sig-sub">{isQuo ? 'I confirm and accept the estimate terms above' : 'Goods / Services received in good order & condition'}</div>
           </div>
 
           <div className="sig-block" style={{ textAlign: 'right' }}>
@@ -372,7 +440,7 @@ export default function InvoiceProfilePage() {
 
         {/* Footer */}
         <div className="ird-footer">
-          <div>This is a computer-generated commercial invoice.</div>
+          <div>This is a computer-generated commercial {isQuo ? 'quotation / estimate' : 'invoice'}.</div>
           <div>Thank you for your business!</div>
         </div>
       </div>
@@ -533,6 +601,7 @@ export default function InvoiceProfilePage() {
         .status-pill.paid { background: #dcfce7; color: #15803d; }
         .status-pill.partial { background: #fef9c3; color: #854d0e; }
         .status-pill.unpaid { background: #fee2e2; color: #b91c1c; }
+        .status-pill.quotation { background: #e0f2fe; color: #0284c7; }
 
         .ird-parties-grid {
           display: grid;

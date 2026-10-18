@@ -10,7 +10,10 @@ function fmtLKR(n: number) {
   return `LKR ${Number(n).toLocaleString('en-LK', { minimumFractionDigits: 2 })}`
 }
 
-function StatusBadge({ s }: { s: string }) {
+function StatusBadge({ s, isQuo }: { s: string; isQuo?: boolean }) {
+  if (isQuo || s === 'QUOTATION') {
+    return <span className="badge" style={{ background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd' }}>QUOTATION</span>
+  }
   const map: Record<string, string> = {
     UNPAID: 'badge-draft',
     PARTIAL: 'badge-progress',
@@ -37,26 +40,37 @@ export default function InvoicesPage() {
     mutationFn: deleteInvoice,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invoices'] })
-      success('Invoice Deleted', 'Invoice has been deleted successfully.')
+      success('Document Deleted', 'Document has been deleted successfully.')
     },
     onError: () => {
-      error('Delete Failed', 'Failed to delete invoice.')
+      error('Delete Failed', 'Failed to delete document.')
     }
   })
 
   const filtered = invoices.filter(i => {
     const q = search.toLowerCase().trim()
+    const isQuo = Boolean(i.isQuotation || i.status === 'QUOTATION' || i.invoiceNumber?.startsWith('QUO-'))
     const matchSearch = !q || i.invoiceNumber.toLowerCase().includes(q) || i.customer?.name.toLowerCase().includes(q)
-    const matchStatus = statusFilter === 'ALL' || i.status === statusFilter
+    let matchStatus = true
+    if (statusFilter === 'QUOTATION') {
+      matchStatus = isQuo
+    } else if (statusFilter === 'ALL') {
+      matchStatus = true
+    } else if (statusFilter === 'INVOICES') {
+      matchStatus = !isQuo
+    } else {
+      matchStatus = !isQuo && i.status === statusFilter
+    }
     return matchSearch && matchStatus
   })
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
-  const totalReceivables = invoices.filter(i => i.status !== 'PAID').reduce((sum, i) => sum + Number(i.balance), 0)
+  const activeInvoices = invoices.filter(i => !i.isQuotation && i.status !== 'QUOTATION' && !i.invoiceNumber?.startsWith('QUO-'))
+  const totalReceivables = activeInvoices.filter(i => i.status !== 'PAID').reduce((sum, i) => sum + Number(i.balance), 0)
   const totalRevenue = invoices.reduce((sum, i) => sum + Number(i.amountPaid), 0)
-  const unpaidCount = invoices.filter(i => i.status === 'UNPAID').length
+  const unpaidCount = activeInvoices.filter(i => i.status === 'UNPAID').length
 
   return (
     <div>
@@ -64,11 +78,11 @@ export default function InvoicesPage() {
         <div>
           <h1 className="page-title">Invoices & Billing</h1>
           <p className="page-subtitle">
-            Manage customer invoices, payments, and receivables
+            Manage customer invoices, quotations, payments, and receivables
           </p>
         </div>
         <button className="btn btn-primary" onClick={() => navigate('/invoices/new')}>
-          <Plus size={15} /> New Invoice
+          <Plus size={15} /> New Invoice / Quotation
         </button>
       </div>
 
@@ -79,8 +93,8 @@ export default function InvoicesPage() {
             <div className="kpi-label">Total Invoices</div>
             <FileText size={14} style={{ color: 'var(--text-muted)' }} />
           </div>
-          <div className="kpi-value">{invoices.length}</div>
-          <div className="kpi-change neutral">All time</div>
+          <div className="kpi-value">{activeInvoices.length}</div>
+          <div className="kpi-change neutral">{invoices.length - activeInvoices.length} Quotations</div>
         </div>
 
         <div className="kpi-card" style={{ padding: '14px 16px' }}>
@@ -125,7 +139,7 @@ export default function InvoicesPage() {
               <Search size={14} className="search-icon" />
               <input
                 type="text"
-                placeholder="Search invoices by number or customer..."
+                placeholder="Search by doc # or customer..."
                 className="form-input"
                 style={{ height: '34px' }}
                 value={search}
@@ -135,14 +149,16 @@ export default function InvoicesPage() {
 
             <select 
               className="form-input" 
-              style={{ width: 160, height: 34, appearance: 'auto' }}
+              style={{ width: 170, height: 34, appearance: 'auto' }}
               value={statusFilter}
               onChange={e => { setStatusFilter(e.target.value); setPage(1) }}
             >
-              <option value="ALL">All Status</option>
-              <option value="UNPAID">Unpaid</option>
-              <option value="PARTIAL">Partial</option>
-              <option value="PAID">Paid</option>
+              <option value="ALL">All Documents</option>
+              <option value="INVOICES">All Invoices</option>
+              <option value="QUOTATION">Quotations Only</option>
+              <option value="UNPAID">Unpaid Invoices</option>
+              <option value="PARTIAL">Partial Invoices</option>
+              <option value="PAID">Paid Invoices</option>
             </select>
           </div>
         </div>
@@ -152,7 +168,7 @@ export default function InvoicesPage() {
         <table className="table">
           <thead>
             <tr>
-              <th>Invoice #</th>
+              <th>Doc #</th>
               <th>Date</th>
               <th>Customer</th>
               <th style={{ textAlign: 'right' }}>Total (LKR)</th>
@@ -174,55 +190,63 @@ export default function InvoicesPage() {
                 <td colSpan={8}>
                   <div className="empty-state">
                     <div className="empty-state-icon"><FileText size={20} /></div>
-                    <div className="empty-state-title">No invoices found</div>
+                    <div className="empty-state-title">No documents found</div>
                   </div>
                 </td>
               </tr>
-            ) : paged.map(inv => (
-              <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>
-                <td>
-                  <span className="badge badge-gold" style={{ fontFamily: 'monospace', letterSpacing: '0.05em', fontSize: 12 }}>
-                    {inv.invoiceNumber}
-                  </span>
-                </td>
-                <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                  {format(parseISO(inv.date), 'MMM dd, yyyy')}
-                </td>
-                <td>
-                  <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>{inv.customer?.name}</div>
-                </td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
-                  {Number(inv.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                </td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, color: 'var(--text-muted)' }}>
-                  {Number(inv.amountPaid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                </td>
-                <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: Number(inv.balance) > 0 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
-                  {Number(inv.balance).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
-                </td>
-                <td style={{ textAlign: 'center' }}>
-                  <StatusBadge s={inv.status} />
-                </td>
-                <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
-                  <button className="btn btn-ghost btn-icon btn-sm" title="View Invoice" onClick={() => navigate(`/invoices/${inv.id}`)}>
-                    <Eye size={13} />
-                  </button>
-                  <button 
-                    className="btn btn-ghost btn-icon btn-sm" 
-                    title="Delete Invoice"
-                    style={{ color: 'var(--color-danger)', marginLeft: 4 }}
-                    onClick={() => {
-                      if (confirm(`Are you sure you want to delete invoice #${inv.invoiceNumber}? All associated payments will also be removed.`)) {
-                        deleteMut.mutate(inv.id)
-                      }
-                    }}
-                    disabled={deleteMut.isPending}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </td>
-              </tr>
-            ))}
+            ) : paged.map(inv => {
+              const isQuo = Boolean(inv.isQuotation || inv.status === 'QUOTATION' || inv.invoiceNumber?.startsWith('QUO-'))
+              return (
+                <tr key={inv.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/invoices/${inv.id}`)}>
+                  <td>
+                    <span className={`badge ${isQuo ? '' : 'badge-gold'}`} style={{ 
+                      fontFamily: 'monospace', 
+                      letterSpacing: '0.05em', 
+                      fontSize: 12,
+                      ...(isQuo ? { background: '#f0f9ff', color: '#0369a1', border: '1px solid #bae6fd' } : {})
+                    }}>
+                      {inv.invoiceNumber}
+                    </span>
+                  </td>
+                  <td style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    {format(parseISO(inv.date), 'MMM dd, yyyy')}
+                  </td>
+                  <td>
+                    <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13 }}>{inv.customer?.name}</div>
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, fontWeight: 600 }}>
+                    {Number(inv.total).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, color: 'var(--text-muted)' }}>
+                    {isQuo ? '—' : Number(inv.amountPaid).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'right', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: isQuo ? 'var(--text-muted)' : Number(inv.balance) > 0 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
+                    {isQuo ? '—' : Number(inv.balance).toLocaleString('en-LK', { minimumFractionDigits: 2 })}
+                  </td>
+                  <td style={{ textAlign: 'center' }}>
+                    <StatusBadge s={inv.status} isQuo={isQuo} />
+                  </td>
+                  <td onClick={e => e.stopPropagation()} style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-ghost btn-icon btn-sm" title={isQuo ? "View Quotation" : "View Invoice"} onClick={() => navigate(`/invoices/${inv.id}`)}>
+                      <Eye size={13} />
+                    </button>
+                    <button 
+                      className="btn btn-ghost btn-icon btn-sm" 
+                      title={isQuo ? "Delete Quotation" : "Delete Invoice"}
+                      style={{ color: 'var(--color-danger)', marginLeft: 4 }}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete ${isQuo ? 'quotation' : 'invoice'} #${inv.invoiceNumber}? All associated records will also be removed.`)) {
+                          deleteMut.mutate(inv.id)
+                        }
+                      }}
+                      disabled={deleteMut.isPending}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
           </tbody>
         </table>
 
