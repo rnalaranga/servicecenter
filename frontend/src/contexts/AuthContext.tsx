@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
+import { api } from '@/api/client'
 
 interface User {
   id: number
@@ -39,22 +40,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token])
 
   const login = async (username: string, password: string) => {
-    // Demo login - will be replaced with real API call
-    if (username === 'admin' && password === 'admin@golden123') {
-      const mockUser: User = {
-        id: 1,
-        username: 'admin',
-        email: 'admin@goldendetail.lk',
-        fullName: 'System Administrator',
-        role: 'ADMIN',
+    try {
+      const response = await api.post('/users/login', { username, password })
+      const { token: receivedToken, user: receivedUser } = response.data
+      localStorage.setItem('erp-token', receivedToken)
+      localStorage.setItem('erp-user', JSON.stringify(receivedUser))
+      setToken(receivedToken)
+      setUser(receivedUser)
+    } catch (err: any) {
+      // Fallback for offline demo mode
+      if (username === 'admin' && password === 'admin@golden123') {
+        const mockUser: User = {
+          id: 1,
+          username: 'admin',
+          email: 'admin@goldendetail.lk',
+          fullName: 'System Administrator',
+          role: 'ADMIN',
+        }
+        const mockToken = 'demo-jwt-token-' + Date.now()
+        localStorage.setItem('erp-token', mockToken)
+        localStorage.setItem('erp-user', JSON.stringify(mockUser))
+        setToken(mockToken)
+        setUser(mockUser)
+        return
       }
-      const mockToken = 'demo-jwt-token-' + Date.now()
-      localStorage.setItem('erp-token', mockToken)
-      localStorage.setItem('erp-user', JSON.stringify(mockUser))
-      setToken(mockToken)
-      setUser(mockUser)
-    } else {
-      throw new Error('Invalid username or password')
+      throw new Error(err.response?.data?.error || err.message || 'Invalid username or password')
     }
   }
 

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getJobCards, deleteJobCard, type JobCard } from '@/api/jobcards'
+import { useAuth } from '@/contexts/AuthContext'
 import { format, parseISO } from 'date-fns'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,6 +16,8 @@ function fmtLKR(n: number) {
 type SortKey = 'date' | 'jobNumber' | 'customer' | 'status' | 'total'
 
 export default function JobCardsPage() {
+  const { user } = useAuth()
+  const isAdvisor = user?.role === 'SERVICE_ADVISOR'
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
@@ -127,7 +130,11 @@ export default function JobCardsPage() {
           { label: 'Active Jobs', value: activeCount.toString(), sub: 'In workshop', color: false, icon: Clock },
           { label: 'Completed Today', value: jobCards.filter(j => j.status === 'COMPLETED' && new Date(j.updatedAt).toDateString() === new Date().toDateString()).length.toString(), sub: 'Ready for delivery', color: false, icon: FileText },
           { label: 'High Priority', value: jobCards.filter(j => (j.priority === 'HIGH' || j.priority === 'URGENT') && ['OPEN', 'IN_PROGRESS'].includes(j.status)).length.toString(), sub: 'Requires attention', color: true, icon: AlertTriangle },
-          { label: 'Total Value (Active)', value: fmtLKR(jobCards.filter(j => ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'INSPECTION'].includes(j.status)).reduce((s, j) => s + Number(j.total), 0)), sub: 'WIP Revenue', color: false, icon: ClipboardList },
+          ...(isAdvisor ? [
+            { label: 'Total Completed', value: jobCards.filter(j => j.status === 'COMPLETED').length.toString(), sub: 'Ready / Done', color: false, icon: ClipboardList }
+          ] : [
+            { label: 'Total Value (Active)', value: fmtLKR(jobCards.filter(j => ['OPEN', 'IN_PROGRESS', 'WAITING_FOR_PARTS', 'INSPECTION'].includes(j.status)).reduce((s, j) => s + Number(j.total), 0)), sub: 'WIP Revenue', color: false, icon: ClipboardList }
+          ]),
         ].map(k => {
           const Icon = k.icon
           return (
@@ -202,24 +209,26 @@ export default function JobCardsPage() {
                   Status <SortIcon k="status" />
                 </button>
               </th>
-              <th>
-                <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontFamily: 'inherit' }} onClick={() => toggleSort('total')}>
-                  Value <SortIcon k="total" />
-                </button>
-              </th>
+              {!isAdvisor && (
+                <th>
+                  <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 700, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', fontFamily: 'inherit' }} onClick={() => toggleSort('total')}>
+                    Value <SortIcon k="total" />
+                  </button>
+                </th>
+              )}
               <th></th>
             </tr>
           </thead>
           <tbody>
             {isLoading ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', padding: '40px' }}>
+                <td colSpan={isAdvisor ? 7 : 8} style={{ textAlign: 'center', padding: '40px' }}>
                   <Loader2 size={24} className="spinner" style={{ margin: '0 auto', color: 'var(--color-gold-primary)' }} />
                 </td>
               </tr>
             ) : paged.length === 0 ? (
               <tr>
-                <td colSpan={8}>
+                <td colSpan={isAdvisor ? 7 : 8}>
                   <div className="empty-state">
                     <div className="empty-state-icon"><ClipboardList size={20} /></div>
                     <div className="empty-state-title">No job cards found</div>
@@ -257,11 +266,13 @@ export default function JobCardsPage() {
                 </td>
                 <td><PriBadge p={j.priority} /></td>
                 <td><JobStatusBadge s={j.status} /></td>
-                <td>
-                  <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 13, color: 'var(--text)' }}>
-                    {fmtLKR(j.total)}
-                  </span>
-                </td>
+                {!isAdvisor && (
+                  <td>
+                    <span style={{ fontWeight: 600, fontFamily: 'monospace', fontSize: 13, color: 'var(--text)' }}>
+                      {fmtLKR(j.total)}
+                    </span>
+                  </td>
+                )}
                 <td onClick={e => e.stopPropagation()}>
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button className="btn btn-ghost btn-icon btn-sm" title="View Details" onClick={() => navigate(`/job-cards/${j.id}`)}>

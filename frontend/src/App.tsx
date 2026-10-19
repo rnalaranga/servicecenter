@@ -80,6 +80,22 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function AdvisorRestrictedRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth()
+  if (user?.role === 'SERVICE_ADVISOR') {
+    return <Navigate to="/job-cards" replace />
+  }
+  return <>{children}</>
+}
+
+function DashboardOrAdvisor() {
+  const { user } = useAuth()
+  if (user?.role === 'SERVICE_ADVISOR') {
+    return <Navigate to="/job-cards" replace />
+  }
+  return <DashboardPage />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -91,7 +107,7 @@ function AppRoutes() {
         </ProtectedRoute>
       }>
         {/* Dashboard */}
-        <Route index element={<DashboardPage />} />
+        <Route index element={<DashboardOrAdvisor />} />
 
         {/* Workshop */}
         <Route path="job-cards" element={<JobCardsPage />} />
@@ -102,9 +118,9 @@ function AppRoutes() {
         <Route path="vehicles/new" element={<VehicleFormPage />} />
         <Route path="vehicles/:id" element={<VehicleProfilePage />} />
         <Route path="vehicles/:id/edit" element={<VehicleFormPage />} />
-        <Route path="services" element={<ServicesPage />} />
-        <Route path="services/new" element={<ServiceFormPage />} />
-        <Route path="services/:id/edit" element={<ServiceFormPage />} />
+        <Route path="services" element={<AdvisorRestrictedRoute><ServicesPage /></AdvisorRestrictedRoute>} />
+        <Route path="services/new" element={<AdvisorRestrictedRoute><ServiceFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="services/:id/edit" element={<AdvisorRestrictedRoute><ServiceFormPage /></AdvisorRestrictedRoute>} />
         <Route path="reminders" element={<RemindersPage />} />
 
         {/* Sales */}
@@ -112,53 +128,53 @@ function AppRoutes() {
         <Route path="customers/new" element={<CustomerFormPage />} />
         <Route path="customers/:id" element={<CustomerProfilePage />} />
         <Route path="customers/:id/edit" element={<CustomerFormPage />} />
-        <Route path="invoices" element={<InvoicesPage />} />
-        <Route path="invoices/new" element={<InvoiceFormPage />} />
-        <Route path="invoices/:id" element={<InvoiceProfilePage />} />
-        <Route path="payments" element={<PaymentsPage />} />
-        <Route path="payments/new" element={<PaymentFormPage />} />
+        <Route path="invoices" element={<AdvisorRestrictedRoute><InvoicesPage /></AdvisorRestrictedRoute>} />
+        <Route path="invoices/new" element={<AdvisorRestrictedRoute><InvoiceFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="invoices/:id" element={<AdvisorRestrictedRoute><InvoiceProfilePage /></AdvisorRestrictedRoute>} />
+        <Route path="payments" element={<AdvisorRestrictedRoute><PaymentsPage /></AdvisorRestrictedRoute>} />
+        <Route path="payments/new" element={<AdvisorRestrictedRoute><PaymentFormPage /></AdvisorRestrictedRoute>} />
 
         {/* Inventory */}
-        <Route path="products" element={<ProductsPage />} />
-        <Route path="products/new" element={<ProductFormPage />} />
-        <Route path="products/:id" element={<ProductProfilePage />} />
-        <Route path="products/:id/edit" element={<ProductFormPage />} />
-        <Route path="stock" element={<StockPage />} />
-        <Route path="stock/adjust" element={<StockAdjustmentPage />} />
-        <Route path="stock-movements" element={<StockMovementsPage />} />
+        <Route path="products" element={<AdvisorRestrictedRoute><ProductsPage /></AdvisorRestrictedRoute>} />
+        <Route path="products/new" element={<AdvisorRestrictedRoute><ProductFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="products/:id" element={<AdvisorRestrictedRoute><ProductProfilePage /></AdvisorRestrictedRoute>} />
+        <Route path="products/:id/edit" element={<AdvisorRestrictedRoute><ProductFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="stock" element={<AdvisorRestrictedRoute><StockPage /></AdvisorRestrictedRoute>} />
+        <Route path="stock/adjust" element={<AdvisorRestrictedRoute><StockAdjustmentPage /></AdvisorRestrictedRoute>} />
+        <Route path="stock-movements" element={<AdvisorRestrictedRoute><StockMovementsPage /></AdvisorRestrictedRoute>} />
 
         {/* Purchasing */}
-        <Route path="vendors" element={<VendorsPage />} />
-        <Route path="vendors/new" element={<VendorFormPage />} />
-        <Route path="vendors/:id" element={<VendorProfilePage />} />
-        <Route path="vendors/:id/edit" element={<VendorFormPage />} />
-        <Route path="purchases" element={<PurchasesPage />} />
-        <Route path="purchases/new" element={<PurchaseFormPage />} />
-        <Route path="purchases/:id" element={<PurchaseProfilePage />} />
-        <Route path="vendor-payments" element={<VendorPaymentsPage />} />
-        <Route path="vendor-payments/new" element={<VendorPaymentFormPage />} />
+        <Route path="vendors" element={<AdvisorRestrictedRoute><VendorsPage /></AdvisorRestrictedRoute>} />
+        <Route path="vendors/new" element={<AdvisorRestrictedRoute><VendorFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="vendors/:id" element={<AdvisorRestrictedRoute><VendorProfilePage /></AdvisorRestrictedRoute>} />
+        <Route path="vendors/:id/edit" element={<AdvisorRestrictedRoute><VendorFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="purchases" element={<AdvisorRestrictedRoute><PurchasesPage /></AdvisorRestrictedRoute>} />
+        <Route path="purchases/new" element={<AdvisorRestrictedRoute><PurchaseFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="purchases/:id" element={<AdvisorRestrictedRoute><PurchaseProfilePage /></AdvisorRestrictedRoute>} />
+        <Route path="vendor-payments" element={<AdvisorRestrictedRoute><VendorPaymentsPage /></AdvisorRestrictedRoute>} />
+        <Route path="vendor-payments/new" element={<AdvisorRestrictedRoute><VendorPaymentFormPage /></AdvisorRestrictedRoute>} />
 
         {/* Finance */}
-        <Route path="customer-ledger" element={<CustomerLedgerPage />} />
-        <Route path="customer-ledger/:id" element={<CustomerStatementPage />} />
-        <Route path="vendor-ledger" element={<VendorLedgerPage />} />
-        <Route path="vendor-ledger/:id" element={<VendorStatementPage />} />
-        <Route path="expenses" element={<ExpensesPage />} />
-        <Route path="expenses/new" element={<ExpenseFormPage />} />
-        <Route path="chart-of-accounts" element={<ChartOfAccountsPage />} />
-        <Route path="journal-entries" element={<JournalEntriesPage />} />
+        <Route path="customer-ledger" element={<AdvisorRestrictedRoute><CustomerLedgerPage /></AdvisorRestrictedRoute>} />
+        <Route path="customer-ledger/:id" element={<AdvisorRestrictedRoute><CustomerStatementPage /></AdvisorRestrictedRoute>} />
+        <Route path="vendor-ledger" element={<AdvisorRestrictedRoute><VendorLedgerPage /></AdvisorRestrictedRoute>} />
+        <Route path="vendor-ledger/:id" element={<AdvisorRestrictedRoute><VendorStatementPage /></AdvisorRestrictedRoute>} />
+        <Route path="expenses" element={<AdvisorRestrictedRoute><ExpensesPage /></AdvisorRestrictedRoute>} />
+        <Route path="expenses/new" element={<AdvisorRestrictedRoute><ExpenseFormPage /></AdvisorRestrictedRoute>} />
+        <Route path="chart-of-accounts" element={<AdvisorRestrictedRoute><ChartOfAccountsPage /></AdvisorRestrictedRoute>} />
+        <Route path="journal-entries" element={<AdvisorRestrictedRoute><JournalEntriesPage /></AdvisorRestrictedRoute>} />
 
         {/* Reports */}
-        <Route path="reports/sales" element={<SalesReportsPage />} />
-        <Route path="reports/inventory" element={<InventoryReportsPage />} />
-        <Route path="reports/profitability" element={<ProfitabilityReportsPage />} />
-        <Route path="reports/financial" element={<FinancialReportsPage />} />
+        <Route path="reports/sales" element={<AdvisorRestrictedRoute><SalesReportsPage /></AdvisorRestrictedRoute>} />
+        <Route path="reports/inventory" element={<AdvisorRestrictedRoute><InventoryReportsPage /></AdvisorRestrictedRoute>} />
+        <Route path="reports/profitability" element={<AdvisorRestrictedRoute><ProfitabilityReportsPage /></AdvisorRestrictedRoute>} />
+        <Route path="reports/financial" element={<AdvisorRestrictedRoute><FinancialReportsPage /></AdvisorRestrictedRoute>} />
 
         {/* System */}
-        <Route path="users" element={<UsersPage />} />
-        <Route path="audit-logs" element={<AuditLogsPage />} />
-        <Route path="settings" element={<SettingsPage />} />
-        <Route path="categories" element={<CategoriesSettingsPage />} />
+        <Route path="users" element={<AdvisorRestrictedRoute><UsersPage /></AdvisorRestrictedRoute>} />
+        <Route path="audit-logs" element={<AdvisorRestrictedRoute><AuditLogsPage /></AdvisorRestrictedRoute>} />
+        <Route path="settings" element={<AdvisorRestrictedRoute><SettingsPage /></AdvisorRestrictedRoute>} />
+        <Route path="categories" element={<AdvisorRestrictedRoute><CategoriesSettingsPage /></AdvisorRestrictedRoute>} />
         <Route path="profile" element={<PlaceholderPage title="My Profile" />} />
 
         {/* 404 */}

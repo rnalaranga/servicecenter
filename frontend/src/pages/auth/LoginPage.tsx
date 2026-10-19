@@ -160,13 +160,19 @@ export default function LoginPage() {
           border: '1px solid rgba(212,175,55,0.2)',
           borderRadius: '8px',
         }}>
-          <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-gold-primary)', marginBottom: '4px' }}>
-            Demo Credentials
+          <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-gold-primary)', marginBottom: '6px' }}>
+            Available Roles & Logins
           </p>
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            Username: <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin</span>
-            &nbsp;&nbsp;Password: <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin@golden123</span>
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
+            <div>
+              <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)' }}>Admin:</span>{' '}
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin</span> / <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin@golden123</span>
+            </div>
+            <div>
+              <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)' }}>Job Card Advisor:</span>{' '}
+              <span style={{ color: 'var(--text)', fontWeight: 600 }}>advisor</span> / <span style={{ color: 'var(--text)', fontWeight: 600 }}>advisor@golden123</span>
+            </div>
+          </div>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: 'var(--text-subtle)' }}>

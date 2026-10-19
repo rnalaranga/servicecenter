@@ -110,6 +110,7 @@ export default function UsersPage() {
   const getRoleBadgeColor = (role: string) => {
     switch(role) {
       case 'ADMIN': return 'var(--color-danger)'
+      case 'SERVICE_ADVISOR': return 'var(--color-gold-primary)'
       case 'MANAGER': return 'var(--color-primary)'
       case 'CASHIER': return 'var(--color-success)'
       case 'TECHNICIAN': return 'var(--color-warning)'
@@ -279,6 +280,7 @@ export default function UsersPage() {
                       onChange={e => setFormData({...formData, role: e.target.value})}
                     >
                       <option value="ADMIN">ADMIN</option>
+                      <option value="SERVICE_ADVISOR">SERVICE ADVISOR (Job Cards Only - No Prices)</option>
                       <option value="MANAGER">MANAGER</option>
                       <option value="CASHIER">CASHIER</option>
                       <option value="TECHNICIAN">TECHNICIAN</option>

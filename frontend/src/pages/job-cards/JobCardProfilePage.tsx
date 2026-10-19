@@ -7,6 +7,7 @@ import { getVendors } from '@/api/vendors'
 import { createPurchase } from '@/api/purchases'
 import { generateInvoiceFromJobCard } from '@/api/invoices'
 import { useToast } from '@/contexts/ToastContext'
+import { useAuth } from '@/contexts/AuthContext'
 import { format, parseISO } from 'date-fns'
 import clsx from 'clsx'
 
@@ -16,6 +17,8 @@ function fmtLKR(n: number) {
 }
 
 export default function JobCardProfilePage() {
+  const { user } = useAuth()
+  const isAdvisor = user?.role === 'SERVICE_ADVISOR'
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { success, error } = useToast()
@@ -170,12 +173,12 @@ export default function JobCardProfilePage() {
           </button>
         )}
 
-        {job.status === 'COMPLETED' && (!job.invoices || job.invoices.length === 0) && (
+        {!isAdvisor && job.status === 'COMPLETED' && (!job.invoices || job.invoices.length === 0) && (
           <button className="btn btn-primary btn-sm" onClick={() => invMut.mutate(id!)} disabled={invMut.isPending}>
             {invMut.isPending ? 'Generating...' : 'Generate Invoice'}
           </button>
         )}
-        {job.invoices && job.invoices.length > 0 && (
+        {!isAdvisor && job.invoices && job.invoices.length > 0 && (
           <button className="btn btn-primary btn-sm" onClick={() => navigate(`/invoices/${job.invoices![0].id}`)}>
             View Invoice
           </button>
@@ -267,7 +270,9 @@ export default function JobCardProfilePage() {
                   <select className="form-input" value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} style={{ appearance: 'auto' }}>
                     <option value="">-- Choose --</option>
                     {allServices.map(s => (
-                      <option key={s.id} value={s.id}>{s.name} - LKR {s.sellingPrice}</option>
+                      <option key={s.id} value={s.id}>
+                        {s.name}{!isAdvisor ? ` - LKR ${s.sellingPrice}` : ''}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -294,16 +299,16 @@ export default function JobCardProfilePage() {
                 <thead>
                   <tr>
                     <th>Service</th>
-                    <th style={{ textAlign: 'right' }}>Unit Price</th>
+                    {!isAdvisor && <th style={{ textAlign: 'right' }}>Unit Price</th>}
                     <th style={{ textAlign: 'center' }}>Qty</th>
-                    <th style={{ textAlign: 'right' }}>Total</th>
+                    {!isAdvisor && <th style={{ textAlign: 'right' }}>Total</th>}
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {services.length === 0 ? (
                     <tr>
-                      <td colSpan={5}>
+                      <td colSpan={isAdvisor ? 3 : 5}>
                         <div className="empty-state" style={{ padding: '24px' }}>
                           <PackagePlus size={20} style={{ color: 'var(--text-subtle)' }} />
                           <div className="empty-state-title" style={{ fontSize: 13, marginTop: 8 }}>No services added</div>
@@ -315,9 +320,13 @@ export default function JobCardProfilePage() {
                       <td>
                         <div style={{ fontWeight: 500, color: 'var(--text)' }}>{s.service?.name}</div>
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtLKR(s.unitPrice)}</td>
+                      {!isAdvisor && (
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace' }}>{fmtLKR(s.unitPrice)}</td>
+                      )}
                       <td style={{ textAlign: 'center' }}>{s.quantity}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtLKR(s.total)}</td>
+                      {!isAdvisor && (
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtLKR(s.total)}</td>
+                      )}
                       <td>
                         <button 
                           className="btn btn-ghost btn-icon btn-sm" 
@@ -331,7 +340,7 @@ export default function JobCardProfilePage() {
                       </td>
                     </tr>
                   ))}
-                  {services.length > 0 && (
+                  {!isAdvisor && services.length > 0 && (
                     <tr style={{ background: 'var(--bg)' }}>
                       <td colSpan={3} style={{ textAlign: 'right', fontWeight: 700, fontSize: 13 }}>Subtotal:</td>
                       <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, fontFamily: 'monospace', color: 'var(--color-gold-primary)' }}>
@@ -346,91 +355,93 @@ export default function JobCardProfilePage() {
           </div>
 
           {/* External Purchases Section */}
-          <div className="card">
-            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="card-title">External Purchases</div>
-              {job.status !== 'COMPLETED' && job.status !== 'DELIVERED' && (
-                <button className="btn btn-secondary btn-sm" onClick={() => setShowAddExtPurchase(!showAddExtPurchase)}>
-                  <Plus size={13} /> Add Purchase
-                </button>
-              )}
-            </div>
-
-            {/* Add External Purchase Form */}
-            {showAddExtPurchase && (
-              <div style={{ padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-                <div className="form-group" style={{ flex: 1, minWidth: '150px', marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 11 }}>Select Vendor</label>
-                  <select className="form-input" value={extVendorId} onChange={e => setExtVendorId(e.target.value)}>
-                    <option value="">-- Choose Vendor --</option>
-                    {allVendors.map(v => (
-                      <option key={v.id} value={v.id}>{v.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="form-group" style={{ flex: 2, minWidth: '200px', marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 11 }}>Description (e.g., Special Paint)</label>
-                  <input type="text" className="form-input" value={extDesc} onChange={e => setExtDesc(e.target.value)} />
-                </div>
-                <div className="form-group" style={{ width: 120, marginBottom: 0 }}>
-                  <label className="form-label" style={{ fontSize: 11 }}>Amount (Cost)</label>
-                  <input type="number" className="form-input" value={extAmount} onChange={e => setExtAmount(e.target.value)} />
-                </div>
-                <button 
-                  className="btn btn-primary" 
-                  disabled={!extVendorId || !extDesc || !extAmount || addExtPurchaseMut.isPending}
-                  onClick={() => addExtPurchaseMut.mutate()}
-                  style={{ height: '34px' }}
-                >
-                  {addExtPurchaseMut.isPending ? 'Saving...' : 'Save'}
-                </button>
-                <button className="btn btn-secondary btn-icon" onClick={() => setShowAddExtPurchase(false)} style={{ height: '34px' }}>
-                  ×
-                </button>
+          {!isAdvisor && (
+            <div className="card">
+              <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="card-title">External Purchases</div>
+                {job.status !== 'COMPLETED' && job.status !== 'DELIVERED' && (
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowAddExtPurchase(!showAddExtPurchase)}>
+                    <Plus size={13} /> Add Purchase
+                  </button>
+                )}
               </div>
-            )}
 
-            <div className="card-body" style={{ padding: 0 }}>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Vendor</th>
-                    <th>Description</th>
-                    <th style={{ textAlign: 'right' }}>Total Cost</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(!job.purchases || job.purchases.length === 0) ? (
+              {/* Add External Purchase Form */}
+              {showAddExtPurchase && (
+                <div style={{ padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ flex: 1, minWidth: '150px', marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 11 }}>Select Vendor</label>
+                    <select className="form-input" value={extVendorId} onChange={e => setExtVendorId(e.target.value)}>
+                      <option value="">-- Choose Vendor --</option>
+                      {allVendors.map(v => (
+                        <option key={v.id} value={v.id}>{v.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: 2, minWidth: '200px', marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 11 }}>Description (e.g., Special Paint)</label>
+                    <input type="text" className="form-input" value={extDesc} onChange={e => setExtDesc(e.target.value)} />
+                  </div>
+                  <div className="form-group" style={{ width: 120, marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: 11 }}>Amount (Cost)</label>
+                    <input type="number" className="form-input" value={extAmount} onChange={e => setExtAmount(e.target.value)} />
+                  </div>
+                  <button 
+                    className="btn btn-primary" 
+                    disabled={!extVendorId || !extDesc || !extAmount || addExtPurchaseMut.isPending}
+                    onClick={() => addExtPurchaseMut.mutate()}
+                    style={{ height: '34px' }}
+                  >
+                    {addExtPurchaseMut.isPending ? 'Saving...' : 'Save'}
+                  </button>
+                  <button className="btn btn-secondary btn-icon" onClick={() => setShowAddExtPurchase(false)} style={{ height: '34px' }}>
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="card-body" style={{ padding: 0 }}>
+                <table className="table">
+                  <thead>
                     <tr>
-                      <td colSpan={3}>
-                        <div className="empty-state" style={{ padding: '24px' }}>
-                          <ShoppingCart size={20} style={{ color: 'var(--text-subtle)' }} />
-                          <div className="empty-state-title" style={{ fontSize: 13, marginTop: 8 }}>No external purchases recorded</div>
-                        </div>
-                      </td>
+                      <th>Vendor</th>
+                      <th>Description</th>
+                      <th style={{ textAlign: 'right' }}>Total Cost</th>
                     </tr>
-                  ) : job.purchases.map((p: any) => (
-                    <tr key={p.id}>
-                      <td>
-                        <div style={{ fontWeight: 500, color: 'var(--text)' }}>{p.vendor?.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.purchaseNumber}</div>
-                      </td>
-                      <td>{p.items?.[0]?.description || 'No description'}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtLKR(p.total)}</td>
-                    </tr>
-                  ))}
-                  {job.purchases && job.purchases.length > 0 && (
-                    <tr style={{ background: 'var(--bg)' }}>
-                      <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, fontSize: 13 }}>External Total:</td>
-                      <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, fontFamily: 'monospace', color: 'var(--color-danger)' }}>
-                        {fmtLKR(job.purchases.reduce((acc: number, p: any) => acc + Number(p.total), 0))}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {(!job.purchases || job.purchases.length === 0) ? (
+                      <tr>
+                        <td colSpan={3}>
+                          <div className="empty-state" style={{ padding: '24px' }}>
+                            <ShoppingCart size={20} style={{ color: 'var(--text-subtle)' }} />
+                            <div className="empty-state-title" style={{ fontSize: 13, marginTop: 8 }}>No external purchases recorded</div>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : job.purchases.map((p: any) => (
+                      <tr key={p.id}>
+                        <td>
+                          <div style={{ fontWeight: 500, color: 'var(--text)' }}>{p.vendor?.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{p.purchaseNumber}</div>
+                        </td>
+                        <td>{p.items?.[0]?.description || 'No description'}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'monospace', fontWeight: 600 }}>{fmtLKR(p.total)}</td>
+                      </tr>
+                    ))}
+                    {job.purchases && job.purchases.length > 0 && (
+                      <tr style={{ background: 'var(--bg)' }}>
+                        <td colSpan={2} style={{ textAlign: 'right', fontWeight: 700, fontSize: 13 }}>External Total:</td>
+                        <td style={{ textAlign: 'right', fontWeight: 700, fontSize: 14, fontFamily: 'monospace', color: 'var(--color-danger)' }}>
+                          {fmtLKR(job.purchases.reduce((acc: number, p: any) => acc + Number(p.total), 0))}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          )}
 
         </div>
 

@@ -92,6 +92,8 @@ const navGroups: NavGroup[] = [
   }
 ]
 
+import { useAuth } from '@/contexts/AuthContext'
+
 interface SidebarProps {
   isOpen: boolean
   onClose: () => void
@@ -99,6 +101,8 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const location = useLocation()
+  const { user } = useAuth()
+  const isAdvisor = user?.role === 'SERVICE_ADVISOR'
   
   const { data: settings } = useQuery({ 
     queryKey: ['settings'], 
@@ -106,6 +110,25 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   })
   
   const companyName = settings?.companyName || 'Golden Auto Detail'
+
+  const activeNavGroups = isAdvisor
+    ? [
+        {
+          label: 'Workshop',
+          items: [
+            { label: 'Job Cards', href: '/job-cards', icon: ClipboardList, badge: 5 },
+            { label: 'Maintenance Reminders', href: '/reminders', icon: Bell },
+            { label: 'Vehicles', href: '/vehicles', icon: Car },
+          ]
+        },
+        {
+          label: 'Contacts',
+          items: [
+            { label: 'Customers', href: '/customers', icon: Users },
+          ]
+        }
+      ]
+    : navGroups
 
   return (
     <>
@@ -135,7 +158,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         {/* Navigation */}
         <nav className="sidebar-nav">
-          {navGroups.map((group, gi) => (
+          {activeNavGroups.map((group, gi) => (
             <div key={gi} className="nav-section">
               {group.label && (
                 <div className="nav-section-label">{group.label}</div>
