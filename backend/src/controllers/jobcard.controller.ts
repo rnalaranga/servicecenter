@@ -63,9 +63,16 @@ export const createJobCard = async (req: Request, res: Response) => {
   try {
     const data = jobCardSchema.parse(req.body);
     
-    // Generate unique Job Number
-    const count = await prisma.jobCard.count();
-    const jobNumber = `JC-${String(count + 1).padStart(6, '0')}`;
+    // Generate collision-safe Job Number
+    const lastJC = await prisma.jobCard.findFirst({
+      orderBy: { id: 'desc' },
+    });
+    let nextNum = (lastJC?.id || 0) + 1;
+    let jobNumber = `JC-${String(nextNum).padStart(6, '0')}`;
+    while (await prisma.jobCard.findUnique({ where: { jobNumber } })) {
+      nextNum++;
+      jobNumber = `JC-${String(nextNum).padStart(6, '0')}`;
+    }
 
     const jobCard = await prisma.jobCard.create({
       data: {

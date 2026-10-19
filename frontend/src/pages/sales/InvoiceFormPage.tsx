@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Save, FileText, Plus, Trash2, AlertCircle, X, Check, Search, Car, User, Building2, Landmark } from 'lucide-react'
+import { ArrowLeft, Save, FileText, Plus, Trash2, AlertCircle, X, Check, Search, Car, User, Building2, Landmark, Loader2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createDirectInvoice } from '@/api/invoices'
 import { getCustomers, createCustomer, type Customer } from '@/api/customers'
@@ -94,6 +94,18 @@ export default function InvoiceFormPage() {
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [quickAdd, setQuickAdd] = useState({ name: '', mobile: '', vehicleReg: '' })
   const [transferVehicleId, setTransferVehicleId] = useState<number | null>(null)
+
+  // Dedicated Vehicle Quick-Add State
+  const [showAddVehicleModal, setShowAddVehicleModal] = useState(false)
+  const [newVehicle, setNewVehicle] = useState({
+    registration: '',
+    make: '',
+    model: '',
+    year: '',
+    colour: '',
+    mileage: ''
+  })
+  const [creatingVehicle, setCreatingVehicle] = useState(false)
 
   // Document Details
   const [notes, setNotes] = useState('')
@@ -306,6 +318,43 @@ export default function InvoiceFormPage() {
     }
   }
 
+  const handleQuickAddVehicle = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!customerId) {
+      error('Customer Required', 'Please select a customer first.')
+      return
+    }
+    if (!newVehicle.registration.trim()) {
+      error('Registration Required', 'Please enter a vehicle registration number.')
+      return
+    }
+    setCreatingVehicle(true)
+    try {
+      const created = await createVehicle({
+        customerId: Number(customerId),
+        registration: newVehicle.registration.trim().toUpperCase(),
+        make: newVehicle.make.trim() || 'Unknown',
+        model: newVehicle.model.trim() || 'Unknown',
+        year: newVehicle.year ? Number(newVehicle.year) : null,
+        colour: newVehicle.colour.trim() || null,
+        mileage: newVehicle.mileage ? Number(newVehicle.mileage) : null,
+        isActive: true
+      } as any)
+
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      queryClient.invalidateQueries({ queryKey: ['vehicles', 'customer', customerId] })
+
+      setVehicleId(String(created.id))
+      success('Vehicle Added', `Vehicle ${created.registration} added and selected.`)
+      setShowAddVehicleModal(false)
+      setNewVehicle({ registration: '', make: '', model: '', year: '', colour: '', mileage: '' })
+    } catch (err: any) {
+      error('Vehicle Save Failed', err?.response?.data?.error || err.message || 'Could not create vehicle')
+    } finally {
+      setCreatingVehicle(false)
+    }
+  }
+
   const subtotal = items.reduce((sum, item) => sum + (Number(item.quantity || 0) * Number(item.unitPrice || 0)), 0)
   const itemDiscounts = items.reduce((sum, item) => sum + Number(item.discount || 0), 0)
   const totalDiscount = itemDiscounts + (Number(globalDiscount) || 0)
@@ -487,7 +536,19 @@ export default function InvoiceFormPage() {
 
               {/* Vehicle Selector */}
               <div className="form-group">
-                <label className="form-label">Vehicle Registration (Optional)</label>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label className="form-label" style={{ margin: 0 }}>Vehicle Registration (Optional)</label>
+                  {customerId && (
+                    <button 
+                      type="button" 
+                      className="btn btn-ghost btn-sm"
+                      style={{ fontSize: 11, color: 'var(--color-gold-primary)', padding: '2px 8px', height: 'auto', gap: 4 }}
+                      onClick={() => setShowAddVehicleModal(true)}
+                    >
+                      <Plus size={12} /> + Add Vehicle
+                    </button>
+                  )}
+                </div>
                 <div style={{ position: 'relative' }}>
                   <Car size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
                   <select 
@@ -509,6 +570,25 @@ export default function InvoiceFormPage() {
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
                   Vehicle will appear on the printed document header.
                 </div>
+                {customerId && customerVehicles.length === 0 && (
+                  <div style={{
+                    marginTop: 8, padding: '10px 14px', background: 'rgba(212, 175, 55, 0.08)',
+                    border: '1px dashed var(--color-gold-primary)', borderRadius: 8,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+                  }}>
+                    <div style={{ fontSize: 12, color: 'var(--text)' }}>
+                      No vehicles registered for this customer.
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      style={{ fontSize: 11, padding: '4px 10px', height: 'auto' }}
+                      onClick={() => setShowAddVehicleModal(true)}
+                    >
+                      <Plus size={12} /> Add Vehicle Now
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -862,6 +942,131 @@ export default function InvoiceFormPage() {
               <button className="btn btn-secondary btn-sm" onClick={() => setShowQuickAdd(false)}>Cancel</button>
               <button className="btn btn-primary btn-sm" onClick={handleQuickAdd}>Save & Select</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Quick Add Vehicle Modal */}
+      {showAddVehicleModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: 480 }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Car size={18} style={{ color: 'var(--color-gold-primary)' }} />
+                <h3 style={{ margin: 0, fontSize: 16 }}>
+                  Add Vehicle for {selectedCustomer?.name || 'Customer'}
+                </h3>
+              </div>
+              <button 
+                type="button" 
+                className="btn btn-ghost btn-icon btn-sm" 
+                onClick={() => setShowAddVehicleModal(false)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleQuickAddVehicle}>
+              <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-group">
+                  <label className="form-label required">Vehicle Registration / Plate Number</label>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder="e.g. WP CAB-1234, CAR-5566, CP GA-4545"
+                    style={{ textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}
+                    value={newVehicle.registration}
+                    onChange={e => setNewVehicle(p => ({ ...p, registration: e.target.value.toUpperCase() }))}
+                    autoFocus
+                    required
+                  />
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
+                    Enter official license plate number.
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Make / Brand</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Toyota, Honda, Nissan"
+                      value={newVehicle.make}
+                      onChange={e => setNewVehicle(p => ({ ...p, make: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Model</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Prius, Civic, Axio"
+                      value={newVehicle.model}
+                      onChange={e => setNewVehicle(p => ({ ...p, model: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-3">
+                  <div className="form-group">
+                    <label className="form-label">Year</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 2018"
+                      value={newVehicle.year}
+                      onChange={e => setNewVehicle(p => ({ ...p, year: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Colour</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. Pearl White"
+                      value={newVehicle.colour}
+                      onChange={e => setNewVehicle(p => ({ ...p, colour: e.target.value }))}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Mileage (km)</label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      placeholder="e.g. 54000"
+                      value={newVehicle.mileage}
+                      onChange={e => setNewVehicle(p => ({ ...p, mileage: e.target.value }))}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                <button 
+                  type="button" 
+                  className="btn btn-secondary btn-sm" 
+                  onClick={() => setShowAddVehicleModal(false)}
+                  disabled={creatingVehicle}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary btn-sm" 
+                  disabled={creatingVehicle || !newVehicle.registration.trim()}
+                >
+                  {creatingVehicle ? (
+                    <><Loader2 size={13} className="spinner" /> Saving...</>
+                  ) : (
+                    <><Check size={13} /> Save & Select Vehicle</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

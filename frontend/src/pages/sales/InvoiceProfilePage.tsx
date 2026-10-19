@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2, FileCheck } from 'lucide-react'
+import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2, FileCheck, Car, Plus, Check, Loader2 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getInvoiceById, recordPayment, deleteInvoice, convertQuotationToInvoice } from '@/api/invoices'
+import { getInvoiceById, recordPayment, deleteInvoice, convertQuotationToInvoice, updateInvoice } from '@/api/invoices'
+import { getVehiclesByCustomerId, createVehicle, type Vehicle } from '@/api/vehicles'
 import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
 import { useToast } from '@/contexts/ToastContext'
@@ -64,11 +65,73 @@ export default function InvoiceProfilePage() {
   const [payAmount, setPayAmount] = useState('')
   const [payMethod, setPayMethod] = useState('CASH')
 
+  // Vehicle Assignment State
+  const [showVehicleModal, setShowVehicleModal] = useState(false)
+  const [selectedVehId, setSelectedVehId] = useState<string>('')
+  const [isCreatingVeh, setIsCreatingVeh] = useState(false)
+  const [newVehData, setNewVehData] = useState({
+    registration: '',
+    make: '',
+    model: '',
+    year: '',
+    colour: '',
+    mileage: ''
+  })
+  const [savingVeh, setSavingVeh] = useState(false)
+
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const { data: invoice, isLoading } = useQuery({
     queryKey: ['invoices', id],
     queryFn: () => getInvoiceById(id!)
   })
+
+  // Customer vehicles for modal
+  const { data: customerVehicles = [] } = useQuery({
+    queryKey: ['vehicles', 'customer', invoice?.customerId],
+    queryFn: () => getVehiclesByCustomerId(String(invoice!.customerId)),
+    enabled: !!invoice?.customerId && showVehicleModal
+  })
+
+  const assignVehicleMut = useMutation({
+    mutationFn: (vehId: number | null) => updateInvoice(id!, { vehicleId: vehId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      queryClient.invalidateQueries({ queryKey: ['invoices', id] })
+      success('Vehicle Updated', 'Vehicle information updated successfully for this document.')
+      setShowVehicleModal(false)
+    },
+    onError: () => error('Update Failed', 'Failed to update vehicle on this document.')
+  })
+
+  const handleCreateAndAssignVehicle = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    if (!invoice) return
+    if (!newVehData.registration.trim()) {
+      return error('Registration Required', 'Please enter a vehicle registration number.')
+    }
+    setSavingVeh(true)
+    try {
+      const created = await createVehicle({
+        customerId: invoice.customerId,
+        registration: newVehData.registration.trim().toUpperCase(),
+        make: newVehData.make.trim() || 'Unknown',
+        model: newVehData.model.trim() || 'Unknown',
+        year: newVehData.year ? Number(newVehData.year) : null,
+        colour: newVehData.colour.trim() || null,
+        mileage: newVehData.mileage ? Number(newVehData.mileage) : null,
+        isActive: true
+      } as any)
+
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      assignVehicleMut.mutate(created.id)
+      setNewVehData({ registration: '', make: '', model: '', year: '', colour: '', mileage: '' })
+      setIsCreatingVeh(false)
+    } catch (err: any) {
+      error('Vehicle Save Failed', err?.response?.data?.error || err.message)
+    } finally {
+      setSavingVeh(false)
+    }
+  }
 
   const payMut = useMutation({
     mutationFn: recordPayment,
@@ -266,11 +329,25 @@ export default function InvoiceProfilePage() {
             )}
           </div>
 
-          <div className="party-box">
-            <div className="party-title">SERVICE / VEHICLE DETAILS</div>
+          <div className="party-box" style={{ position: 'relative' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #e5e7eb', paddingBottom: 6, marginBottom: 8 }}>
+              <div className="party-title" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 0 }}>SERVICE / VEHICLE DETAILS</div>
+              <button 
+                type="button" 
+                className="btn btn-ghost btn-sm no-print" 
+                style={{ fontSize: 11, color: '#0284c7', padding: '1px 6px', height: 'auto', gap: 4 }}
+                onClick={() => {
+                  setSelectedVehId(String(invoice.vehicleId || ''))
+                  setIsCreatingVeh(false)
+                  setShowVehicleModal(true)
+                }}
+              >
+                <Car size={12} /> {vehicle ? 'Change Vehicle' : '+ Assign Vehicle'}
+              </button>
+            </div>
             <div className="party-row">
               <span className="party-label">Vehicle No:</span>
-              <span className="party-value vehicle-reg">{vehicle?.registration || invoice.customer?.code || 'N/A'}</span>
+              <span className="party-value vehicle-reg">{vehicle?.registration || 'N/A (Over-the-counter)'}</span>
             </div>
             {(vehicle?.make || vehicle?.model) && (
               <div className="party-row">
@@ -480,6 +557,157 @@ export default function InvoiceProfilePage() {
               }} disabled={payMut.isPending}>
                 {payMut.isPending ? 'Processing...' : 'Confirm Payment'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign / Change Vehicle Modal */}
+      {showVehicleModal && (
+        <div className="modal-overlay no-print">
+          <div className="modal" style={{ width: 460 }}>
+            <div className="modal-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Car size={18} style={{ color: 'var(--color-gold-primary)' }} />
+                <h3 style={{ margin: 0, fontSize: 16 }}>Vehicle Assignment</h3>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowVehicleModal(false)}><X size={16} /></button>
+            </div>
+
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Customer: <strong>{invoice.customer?.name}</strong> {invoice.customer?.mobile ? `(${invoice.customer.mobile})` : ''}
+              </div>
+
+              {/* Mode Toggle */}
+              <div style={{ display: 'flex', gap: 4, background: '#f1f5f9', padding: 3, borderRadius: 6 }}>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${!isCreatingVeh ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ flex: 1, fontSize: 12 }}
+                  onClick={() => setIsCreatingVeh(false)}
+                >
+                  Select Existing
+                </button>
+                <button
+                  type="button"
+                  className={`btn btn-sm ${isCreatingVeh ? 'btn-primary' : 'btn-ghost'}`}
+                  style={{ flex: 1, fontSize: 12 }}
+                  onClick={() => setIsCreatingVeh(true)}
+                >
+                  <Plus size={13} /> Add New Vehicle
+                </button>
+              </div>
+
+              {!isCreatingVeh ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="form-group">
+                    <label className="form-label">Select Customer Vehicle</label>
+                    <select
+                      className="form-input"
+                      value={selectedVehId}
+                      onChange={e => setSelectedVehId(e.target.value)}
+                      style={{ appearance: 'auto' }}
+                    >
+                      <option value="">-- No Vehicle (Over-the-counter sale) --</option>
+                      {customerVehicles.map((v: Vehicle) => (
+                        <option key={v.id} value={v.id}>
+                          {v.registration} {v.make && v.make !== 'Unknown' ? `- ${v.make} ${v.model}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {customerVehicles.length === 0 && (
+                    <div style={{ fontSize: 12, color: '#b45309', background: '#fef3c7', padding: '10px 12px', borderRadius: 6 }}>
+                      This customer has no vehicles registered yet. Switch to "Add New Vehicle" to add one now.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <form onSubmit={handleCreateAndAssignVehicle} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div className="form-group">
+                    <label className="form-label required">Vehicle Plate / Registration</label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. WP CAB-1234, CAR-5566"
+                      style={{ textTransform: 'uppercase', fontWeight: 600 }}
+                      value={newVehData.registration}
+                      onChange={e => setNewVehData(p => ({ ...p, registration: e.target.value.toUpperCase() }))}
+                      autoFocus
+                      required
+                    />
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Make</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Toyota, Honda"
+                        value={newVehData.make}
+                        onChange={e => setNewVehData(p => ({ ...p, make: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Model</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. Prius, Civic"
+                        value={newVehData.model}
+                        onChange={e => setNewVehData(p => ({ ...p, model: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid-2">
+                    <div className="form-group">
+                      <label className="form-label">Colour</label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="e.g. White"
+                        value={newVehData.colour}
+                        onChange={e => setNewVehData(p => ({ ...p, colour: e.target.value }))}
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label className="form-label">Year</label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        placeholder="e.g. 2020"
+                        value={newVehData.year}
+                        onChange={e => setNewVehData(p => ({ ...p, year: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setShowVehicleModal(false)}>Cancel</button>
+              {!isCreatingVeh ? (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => assignVehicleMut.mutate(selectedVehId ? Number(selectedVehId) : null)}
+                  disabled={assignVehicleMut.isPending}
+                >
+                  {assignVehicleMut.isPending ? 'Updating...' : 'Save Vehicle Link'}
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={handleCreateAndAssignVehicle}
+                  disabled={savingVeh || !newVehData.registration.trim()}
+                >
+                  {savingVeh ? <><Loader2 size={13} className="spinner" /> Saving...</> : <><Check size={13} /> Create & Link</>}
+                </button>
+              )}
             </div>
           </div>
         </div>

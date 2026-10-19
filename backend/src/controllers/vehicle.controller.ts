@@ -7,28 +7,29 @@ async function generateVehicleCode() {
   const lastVehicle = await prisma.vehicle.findFirst({
     orderBy: { id: 'desc' },
   });
-  let nextNumber = 1;
-  if (lastVehicle && lastVehicle.code.startsWith('VEH-')) {
-    const lastNum = parseInt(lastVehicle.code.replace('VEH-', ''), 10);
-    if (!isNaN(lastNum)) nextNumber = lastNum + 1;
+  let nextNumber = (lastVehicle?.id || 0) + 1;
+  let code = `VEH-${nextNumber.toString().padStart(6, '0')}`;
+  while (await prisma.vehicle.findUnique({ where: { code } })) {
+    nextNumber++;
+    code = `VEH-${nextNumber.toString().padStart(6, '0')}`;
   }
-  return `VEH-${nextNumber.toString().padStart(6, '0')}`;
+  return code;
 }
 
 const vehicleSchema = z.object({
   customerId: z.number().or(z.string()).transform(v => Number(v)),
-  registration: z.string().min(1),
-  make: z.string().min(1),
-  model: z.string().min(1),
-  variant: z.string().optional(),
-  year: z.number().or(z.string()).transform(v => Number(v) || null).nullable(),
-  colour: z.string().optional(),
-  fuelType: z.enum(['PETROL', 'DIESEL', 'HYBRID', 'ELECTRIC', 'OTHER']).optional(),
-  transmission: z.enum(['MANUAL', 'AUTOMATIC', 'CVT', 'OTHER']).optional(),
-  engineNumber: z.string().optional(),
-  vin: z.string().optional(), // mapped from chassisNo in frontend
-  mileage: z.number().or(z.string()).transform(v => Number(v) || null).nullable(),
-  notes: z.string().optional(),
+  registration: z.string().min(1, 'Registration number is required').transform(v => v.trim().toUpperCase()),
+  make: z.string().optional().default('Unknown').transform(v => v?.trim() || 'Unknown'),
+  model: z.string().optional().default('Unknown').transform(v => v?.trim() || 'Unknown'),
+  variant: z.string().optional().nullable(),
+  year: z.number().or(z.string()).transform(v => Number(v) || null).nullable().optional(),
+  colour: z.string().optional().nullable(),
+  fuelType: z.enum(['PETROL', 'DIESEL', 'HYBRID', 'ELECTRIC', 'OTHER']).optional().nullable(),
+  transmission: z.enum(['MANUAL', 'AUTOMATIC', 'CVT', 'OTHER']).optional().nullable(),
+  engineNumber: z.string().optional().nullable(),
+  vin: z.string().optional().nullable(), // mapped from chassisNo in frontend
+  mileage: z.number().or(z.string()).transform(v => Number(v) || null).nullable().optional(),
+  notes: z.string().optional().nullable(),
   isActive: z.boolean().default(true),
 });
 
@@ -97,6 +98,32 @@ export const getVehiclesByCustomerId = async (req: Request, res: Response) => {
 export const createVehicle = async (req: Request, res: Response) => {
   try {
     const data = vehicleSchema.parse(req.body);
+    
+    // Check if registration already exists
+    const existing = await prisma.vehicle.findUnique({
+      where: { registration: data.registration }
+    });
+
+    if (existing) {
+      // If it exists for the same customer, return it!
+      if (existing.customerId === data.customerId) {
+        return res.status(200).json(existing);
+      }
+      // If belongs to another customer, update owner to new customer
+      const transferred = await prisma.vehicle.update({
+        where: { id: existing.id },
+        data: {
+          customerId: data.customerId,
+          make: data.make && data.make !== 'Unknown' ? data.make : existing.make,
+          model: data.model && data.model !== 'Unknown' ? data.model : existing.model,
+          year: data.year || existing.year,
+          colour: data.colour || existing.colour,
+          mileage: data.mileage || existing.mileage,
+        }
+      });
+      return res.status(200).json(transferred);
+    }
+
     const code = await generateVehicleCode();
 
     const vehicle = await prisma.vehicle.create({
@@ -109,7 +136,7 @@ export const createVehicle = async (req: Request, res: Response) => {
     res.status(201).json(vehicle);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ error: 'Validation Error', details: error.errors });
+      return res.status(400).json({ error: error.errors[0]?.message || 'Validation Error' });
     }
     console.error(error);
     res.status(500).json({ error: 'Failed to create vehicle' });

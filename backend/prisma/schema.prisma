@@ -140,6 +140,7 @@ model Vehicle {
   // Relations
   customer             Customer              @relation(fields: [customerId], references: [id])
   jobCards             JobCard[]
+  invoices             Invoice[]
   photos               VehiclePhoto[]
   maintenanceReminders MaintenanceReminder[]
 
@@ -602,6 +603,7 @@ model Invoice {
   updatedAt     DateTime      @updatedAt
 
   customer   Customer         @relation(fields: [customerId], references: [id])
+  vehicle    Vehicle?         @relation(fields: [vehicleId], references: [id])
   createdBy  User?            @relation(fields: [createdById], references: [id])
   items      InvoiceItem[]
   payments   CustomerPayment[]
@@ -609,6 +611,7 @@ model Invoice {
   ledger     CustomerLedger[]
 
   @@index([customerId])
+  @@index([vehicleId])
   @@index([status])
   @@map("invoices")
 }
