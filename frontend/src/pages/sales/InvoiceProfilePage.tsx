@@ -1051,6 +1051,38 @@ export default function InvoiceProfilePage() {
           justify-content: space-between;
         }
 
+        @media screen and (max-width: 768px) {
+          .invoice-paper {
+            padding: 18px 14px;
+            margin: 0 auto 20px auto;
+            border-radius: 8px;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .ird-header {
+            flex-direction: column;
+            gap: 16px;
+          }
+          .ird-meta-block {
+            text-align: left;
+          }
+          .ird-parties-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px;
+          }
+          .ird-bottom-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px;
+          }
+          .ird-signatures {
+            grid-template-columns: 1fr !important;
+            gap: 28px;
+          }
+          .ird-table {
+            min-width: 580px;
+          }
+        }
+
         @media print {
           @page {
             margin: 12mm 15mm;

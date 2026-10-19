@@ -125,7 +125,7 @@ export default function JobCardsPage() {
       </div>
 
       {/* ── Summary KPIs ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
+      <div className="kpi-grid">
         {[
           { label: 'Active Jobs', value: activeCount.toString(), sub: 'In workshop', color: false, icon: Clock },
           { label: 'Completed Today', value: jobCards.filter(j => j.status === 'COMPLETED' && new Date(j.updatedAt).toDateString() === new Date().toDateString()).length.toString(), sub: 'Ready for delivery', color: false, icon: FileText },
@@ -183,7 +183,7 @@ export default function JobCardsPage() {
       </div>
 
       {/* ── Table ── */}
-      <div className="table-container">
+      <div className="table-container table-responsive">
         <table className="table">
           <thead>
             <tr>

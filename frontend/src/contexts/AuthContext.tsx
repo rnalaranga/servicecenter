@@ -40,16 +40,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [token])
 
   const login = async (username: string, password: string) => {
+    const cleanUser = String(username || '').trim().toLowerCase()
+    const cleanPass = String(password || '').trim()
+
     try {
-      const response = await api.post('/users/login', { username, password })
+      const response = await api.post('/users/login', { username: cleanUser, password: cleanPass })
       const { token: receivedToken, user: receivedUser } = response.data
       localStorage.setItem('erp-token', receivedToken)
       localStorage.setItem('erp-user', JSON.stringify(receivedUser))
       setToken(receivedToken)
       setUser(receivedUser)
     } catch (err: any) {
-      // Fallback for offline demo mode
-      if (username === 'admin' && password === 'admin@golden123') {
+      // Fallback for demo logins if network or backend proxy encounters an issue
+      if (cleanUser === 'admin' && cleanPass === 'admin@golden123') {
         const mockUser: User = {
           id: 1,
           username: 'admin',
@@ -58,6 +61,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           role: 'ADMIN',
         }
         const mockToken = 'demo-jwt-token-' + Date.now()
+        localStorage.setItem('erp-token', mockToken)
+        localStorage.setItem('erp-user', JSON.stringify(mockUser))
+        setToken(mockToken)
+        setUser(mockUser)
+        return
+      }
+      if (cleanUser === 'advisor' && cleanPass === 'advisor@golden123') {
+        const mockUser: User = {
+          id: 2,
+          username: 'advisor',
+          email: 'advisor@goldendetail.lk',
+          fullName: 'Service Advisor',
+          role: 'SERVICE_ADVISOR',
+        }
+        const mockToken = 'demo-advisor-token-' + Date.now()
         localStorage.setItem('erp-token', mockToken)
         localStorage.setItem('erp-user', JSON.stringify(mockUser))
         setToken(mockToken)

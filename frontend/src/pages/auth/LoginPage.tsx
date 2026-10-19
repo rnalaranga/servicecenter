@@ -16,12 +16,26 @@ export default function LoginPage() {
   const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings })
   const { error } = useToast()
 
+  const handleQuickLogin = async (u: string, p: string) => {
+    setUsername(u)
+    setPassword(p)
+    setLoading(true)
+    try {
+      await login(u, p)
+      navigate('/')
+    } catch (err: any) {
+      error('Login Failed', err.message || 'Invalid credentials')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!username || !password) return
     setLoading(true)
     try {
-      await login(username, password)
+      await login(username.trim().toLowerCase(), password.trim())
       navigate('/')
     } catch (err: any) {
       error('Login Failed', err.message || 'Invalid credentials')
@@ -37,7 +51,7 @@ export default function LoginPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '20px',
+      padding: '16px',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -50,27 +64,27 @@ export default function LoginPage() {
         pointerEvents: 'none',
       }} />
 
-      <div style={{ width: '100%', maxWidth: '400px', position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: '420px', position: 'relative' }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div style={{
-            width: '60px',
-            height: '60px',
+            width: '56px',
+            height: '56px',
             background: 'linear-gradient(135deg, #D4AF37, #B8860B)',
             borderRadius: '16px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 16px',
+            margin: '0 auto 14px',
             boxShadow: '0 8px 24px rgba(212,175,55,0.3)',
-            fontSize: '26px',
+            fontSize: '24px',
             fontWeight: '800',
             color: '#0F1115',
           }}>
             G
           </div>
           <h1 style={{
-            fontSize: '22px',
+            fontSize: '20px',
             fontWeight: '700',
             color: 'var(--text)',
             letterSpacing: '-0.02em',
@@ -84,8 +98,8 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="card">
-          <div className="card-body">
+        <div className="card" style={{ boxShadow: 'var(--shadow-lg)' }}>
+          <div className="card-body" style={{ padding: '24px 20px' }}>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
                 <label className="form-label required">Username</label>
@@ -95,6 +109,9 @@ export default function LoginPage() {
                   placeholder="Enter your username"
                   value={username}
                   onChange={e => setUsername(e.target.value)}
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
                   autoComplete="username"
                   autoFocus
                 />
@@ -110,6 +127,9 @@ export default function LoginPage() {
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     style={{ paddingRight: '40px' }}
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
                     autoComplete="current-password"
                   />
                   <button
@@ -136,7 +156,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className="btn btn-primary btn-lg"
-                style={{ width: '100%', marginTop: '4px' }}
+                style={{ width: '100%', marginTop: '4px', height: '42px', fontSize: '14px' }}
                 disabled={loading || !username || !password}
               >
                 {loading ? (
@@ -152,27 +172,40 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Demo credentials */}
+        {/* Demo Fast Login Buttons */}
         <div style={{
           marginTop: '16px',
-          padding: '12px 16px',
+          padding: '14px 16px',
           background: 'rgba(212,175,55,0.08)',
-          border: '1px solid rgba(212,175,55,0.2)',
-          borderRadius: '8px',
+          border: '1px solid rgba(212,175,55,0.25)',
+          borderRadius: '10px',
         }}>
-          <p style={{ fontSize: '11px', fontWeight: '600', color: 'var(--color-gold-primary)', marginBottom: '6px' }}>
-            Available Roles & Logins
+          <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--color-gold-primary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>
+            ⚡ 1-Tap Quick Login
           </p>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            <div>
-              <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)' }}>Admin:</span>{' '}
-              <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin</span> / <span style={{ color: 'var(--text)', fontWeight: 600 }}>admin@golden123</span>
-            </div>
-            <div>
-              <span style={{ fontWeight: 600, color: 'var(--color-gold-primary)' }}>Job Card Advisor:</span>{' '}
-              <span style={{ color: 'var(--text)', fontWeight: 600 }}>advisor</span> / <span style={{ color: 'var(--text)', fontWeight: 600 }}>advisor@golden123</span>
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              disabled={loading}
+              onClick={() => handleQuickLogin('admin', 'admin@golden123')}
+              style={{ fontSize: '12px', padding: '8px 10px', justifyContent: 'center' }}
+            >
+              👑 Admin
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={loading}
+              onClick={() => handleQuickLogin('advisor', 'advisor@golden123')}
+              style={{ fontSize: '12px', padding: '8px 10px', justifyContent: 'center' }}
+            >
+              📋 Advisor (No Price)
+            </button>
           </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px', textAlign: 'center' }}>
+            Or sign in with username & password above
+          </p>
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: 'var(--text-subtle)' }}>

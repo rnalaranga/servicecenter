@@ -212,7 +212,7 @@ export default function JobCardFormPage() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: 16, alignItems: 'flex-start' }}>
+      <div className="form-layout-grid">
 
         {/* ── Main Form ── */}
         <form onSubmit={handleSubmit}>

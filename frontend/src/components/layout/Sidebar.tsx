@@ -135,25 +135,42 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 90,
+          }}
           onClick={onClose}
         />
       )}
 
       <aside className={clsx('sidebar', isOpen && 'open')}>
         {/* Logo */}
-        <div className="sidebar-logo" style={{ padding: '16px 20px', minHeight: 64, display: 'flex', alignItems: 'center' }}>
-          {settings?.logoDark ? (
-            <img src={settings.logoDark} alt="Logo" style={{ height: 40, width: '100%', objectFit: 'contain', objectPosition: 'left center' }} />
-          ) : (
-            <>
-              <div className="sidebar-logo-icon">{companyName.charAt(0).toUpperCase()}</div>
-              <div className="sidebar-logo-text">
-                <span className="sidebar-logo-name">{companyName}</span>
-                <span className="sidebar-logo-sub">ERP System</span>
-              </div>
-            </>
-          )}
+        <div className="sidebar-logo" style={{ padding: '16px 20px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {settings?.logoDark ? (
+              <img src={settings.logoDark} alt="Logo" style={{ height: 38, maxWidth: 160, objectFit: 'contain' }} />
+            ) : (
+              <>
+                <div className="sidebar-logo-icon">{companyName.charAt(0).toUpperCase()}</div>
+                <div className="sidebar-logo-text">
+                  <span className="sidebar-logo-name">{companyName}</span>
+                  <span className="sidebar-logo-sub">ERP System</span>
+                </div>
+              </>
+            )}
+          </div>
+          <button 
+            type="button" 
+            className="btn btn-ghost btn-icon btn-sm lg:hidden"
+            onClick={onClose}
+            aria-label="Close menu"
+            style={{ color: 'var(--sidebar-muted)', fontSize: 16 }}
+          >
+            ✕
+          </button>
         </div>
 
         {/* Navigation */}

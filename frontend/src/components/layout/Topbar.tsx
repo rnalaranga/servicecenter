@@ -36,6 +36,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
 
   const roleBadge: Record<string, string> = {
     ADMIN: 'Admin',
+    SERVICE_ADVISOR: 'Service Advisor',
     MANAGER: 'Manager',
     ACCOUNTANT: 'Accountant',
     CASHIER: 'Cashier',
@@ -47,16 +48,16 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   return (
     <header className="topbar">
       {/* Mobile menu button */}
-      <button className="btn btn-ghost btn-icon lg:hidden" onClick={onMenuClick}>
+      <button className="btn btn-ghost btn-icon lg:hidden" onClick={onMenuClick} aria-label="Open navigation menu">
         <Menu size={20} />
       </button>
 
       {/* Search */}
-      <div className="search-box" style={{ flex: 1, maxWidth: 400 }}>
+      <div className="search-box" style={{ flex: '1 1 auto', maxWidth: 360, minWidth: 80 }}>
         <Search size={15} className="search-icon" />
         <input
           type="text"
-          placeholder="Search customers, vehicles, job cards..."
+          placeholder="Search..."
           className="form-input"
           style={{ fontSize: '13px', height: '36px' }}
           onFocus={() => setSearchOpen(true)}

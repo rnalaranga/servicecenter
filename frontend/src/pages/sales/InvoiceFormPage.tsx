@@ -608,17 +608,18 @@ export default function InvoiceFormPage() {
 
               {errors.items && <div className="form-error" style={{ marginBottom: 10 }}><AlertCircle size={12} /> {errors.items}</div>}
 
-              <table className="table" style={{ width: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ width: '42%' }}>Item / Service Description</th>
-                    <th style={{ width: '12%', textAlign: 'center' }}>Qty</th>
-                    <th style={{ width: '18%', textAlign: 'right' }}>Unit Price (LKR)</th>
-                    <th style={{ width: '15%', textAlign: 'right' }}>Discount (LKR)</th>
-                    <th style={{ width: '13%', textAlign: 'right' }}>Line Total</th>
-                    <th style={{ width: '40px' }}></th>
-                  </tr>
-                </thead>
+              <div className="table-responsive">
+                <table className="table" style={{ width: '100%', minWidth: 600 }}>
+                  <thead>
+                    <tr>
+                      <th style={{ width: '38%' }}>Item / Service Description</th>
+                      <th style={{ width: '12%', textAlign: 'center' }}>Qty</th>
+                      <th style={{ width: '18%', textAlign: 'right' }}>Unit Price (LKR)</th>
+                      <th style={{ width: '15%', textAlign: 'right' }}>Discount (LKR)</th>
+                      <th style={{ width: '13%', textAlign: 'right' }}>Line Total</th>
+                      <th style={{ width: '40px' }}></th>
+                    </tr>
+                  </thead>
                 <tbody>
                   {items.map((item, idx) => {
                     const lTot = Math.max(0, (Number(item.quantity) * Number(item.unitPrice)) - Number(item.discount || 0))
@@ -727,12 +728,13 @@ export default function InvoiceFormPage() {
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </div>
 
             <div className="divider" style={{ margin: 0 }} />
             
             {/* Terms & Conditions and Bank Details Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            <div className="grid-2">
               
               {/* Terms & Conditions */}
               <div className="form-group">

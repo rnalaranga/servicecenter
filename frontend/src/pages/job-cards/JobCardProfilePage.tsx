@@ -208,7 +208,7 @@ export default function JobCardProfilePage() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'flex-start' }}>
+      <div className="profile-grid">
         
         {/* ── LEFT COLUMN ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -264,8 +264,8 @@ export default function JobCardProfilePage() {
 
             {/* Add Service Inline Form */}
             {showAddService && (
-              <div style={{ padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'flex-end' }}>
-                <div className="form-group" style={{ flex: 1, marginBottom: 0 }}>
+              <div style={{ padding: '12px 16px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                <div className="form-group" style={{ flex: '1 1 200px', marginBottom: 0 }}>
                   <label className="form-label" style={{ fontSize: 11 }}>Select Service</label>
                   <select className="form-input" value={selectedServiceId} onChange={e => setSelectedServiceId(e.target.value)} style={{ appearance: 'auto' }}>
                     <option value="">-- Choose --</option>
@@ -294,7 +294,7 @@ export default function JobCardProfilePage() {
               </div>
             )}
 
-            <div className="card-body" style={{ padding: 0 }}>
+            <div className="card-body table-responsive" style={{ padding: 0 }}>
               <table className="table">
                 <thead>
                   <tr>
