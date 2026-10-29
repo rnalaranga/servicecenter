@@ -56,6 +56,76 @@ async function generatePaymentNumber() {
   }
 }
 
+async function deductStockForInvoice(tx: any, items: any[], invoiceNumber: string) {
+  let warehouse = await tx.warehouse.findFirst({ where: { code: 'MAIN' } });
+  if (!warehouse) {
+    warehouse = await tx.warehouse.create({
+      data: { code: 'MAIN', name: 'Main Warehouse', location: 'HQ', isActive: true }
+    });
+  }
+
+  for (const item of items) {
+    let pId = item.productId;
+    if (!pId && item.description) {
+      const found = await tx.product.findFirst({
+        where: {
+          OR: [
+            { name: item.description },
+            { sku: item.description }
+          ]
+        }
+      });
+      if (found) pId = found.id;
+    }
+
+    if (pId) {
+      const actualQty = Number(item.quantity);
+      if (actualQty <= 0) continue;
+
+      const lastTxn = await tx.stockTransaction.findFirst({ orderBy: { id: 'desc' } });
+      let nextTxnNum = 1;
+      if (lastTxn && lastTxn.txnNumber.startsWith('STX-')) {
+        const parsed = parseInt(lastTxn.txnNumber.replace('STX-', ''), 10);
+        if (!isNaN(parsed)) nextTxnNum = parsed + 1;
+      }
+      const txnNumber = `STX-${String(nextTxnNum).padStart(6, '0')}`;
+
+      await tx.stockTransaction.create({
+        data: {
+          txnNumber,
+          productId: pId,
+          warehouseId: warehouse.id,
+          type: 'OUT',
+          quantity: -actualQty,
+          unitCost: Number(item.unitPrice || 0),
+          totalCost: actualQty * Number(item.unitPrice || 0),
+          refType: 'INVOICE',
+          refNumber: invoiceNumber,
+          notes: `Sold via Invoice ${invoiceNumber}`
+        }
+      });
+
+      const sl = await tx.stockLevel.findUnique({
+        where: { productId_warehouseId: { productId: pId, warehouseId: warehouse.id } }
+      });
+      if (sl) {
+        await tx.stockLevel.update({
+          where: { id: sl.id },
+          data: { quantity: { decrement: actualQty } }
+        });
+      } else {
+        await tx.stockLevel.create({
+          data: {
+            productId: pId,
+            warehouseId: warehouse.id,
+            quantity: -actualQty
+          }
+        });
+      }
+    }
+  }
+}
+
 export const getInvoices = async (req: Request, res: Response) => {
   try {
     const invoices = await prisma.invoice.findMany({
@@ -165,17 +235,25 @@ export const createInvoiceFromJobCard = async (req: Request, res: Response) => {
         }
       });
 
-      // 2. Add to Customer Ledger
+      // 2. Add to Customer Ledger with accurate running balance
+      const lastLedger = await tx.customerLedger.findFirst({
+        where: { customerId: jobCard.customerId },
+        orderBy: { id: 'desc' }
+      });
+      let runningBalance = lastLedger ? Number(lastLedger.balance) : 0;
+      runningBalance += Number(inv.total);
+
       await tx.customerLedger.create({
         data: {
           customerId: jobCard.customerId,
           date: new Date(),
           type: 'INVOICE',
           invoiceId: inv.id,
+          refNumber: invoiceNumber,
           description: `Invoice ${invoiceNumber}`,
-          debit: inv.total, // Customer owes us
+          debit: inv.total,
           credit: 0,
-          balance: 0 // We'll compute cumulative balance if needed, or leave 0
+          balance: runningBalance
         }
       });
 
@@ -216,25 +294,28 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
     let totalAmount = 0;
 
     const invoiceItems = data.items.map((item, idx) => {
-      const lineTotal = (item.quantity * item.unitPrice) - (item.discount || 0);
-      subtotal += (item.quantity * item.unitPrice);
-      totalDiscount += (item.discount || 0);
+      const lineSubtotal = item.quantity * item.unitPrice;
+      const validDiscount = Math.min(Math.max(0, item.discount || 0), lineSubtotal);
+      const lineTotal = lineSubtotal - validDiscount;
+
+      subtotal += lineSubtotal;
+      totalDiscount += validDiscount;
       totalAmount += lineTotal;
 
       return {
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount || 0,
+        discount: validDiscount,
         taxAmount: 0,
         total: lineTotal,
         sortOrder: idx
       };
     });
 
-    totalDiscount += data.globalDiscount;
-    totalAmount -= data.globalDiscount;
-    if (totalAmount < 0) totalAmount = 0;
+    const validGlobalDiscount = Math.min(Math.max(0, data.globalDiscount || 0), totalAmount);
+    totalDiscount += validGlobalDiscount;
+    totalAmount = Math.max(0, totalAmount - validGlobalDiscount);
 
     const isQuotation = !!data.isQuotation;
     const invoiceNumber = await generateInvoiceNumber(isQuotation);
@@ -324,6 +405,9 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
             }
           });
         }
+
+        // 4. Automatically deduct stock for sold products
+        await deductStockForInvoice(tx, invoiceItems, invoiceNumber);
       }
 
       return inv;
@@ -348,6 +432,7 @@ export const convertQuotationToInvoice = async (req: Request, res: Response) => 
 
     const quotation = await prisma.invoice.findUnique({
       where: { id: invoiceId },
+      include: { items: true }
     });
 
     if (!quotation) return res.status(404).json({ error: 'Document not found' });
@@ -392,6 +477,11 @@ export const convertQuotationToInvoice = async (req: Request, res: Response) => 
           balance: runningBalance
         }
       });
+
+      // 3. Deduct stock for products upon conversion
+      if (quotation.items && quotation.items.length > 0) {
+        await deductStockForInvoice(tx, quotation.items, newInvoiceNumber);
+      }
 
       return inv;
     });
@@ -515,9 +605,23 @@ export const deleteInvoice = async (req: Request, res: Response) => {
       await tx.customerLedger.deleteMany({ where: { invoiceId: id } });
       // 3. Delete job card links
       await tx.invoiceJobCard.deleteMany({ where: { invoiceId: id } });
-      // 4. Delete invoice items
+      // 4. Reverse any stock deductions associated with this invoice
+      const outTxns = await tx.stockTransaction.findMany({
+        where: { refType: 'INVOICE', refNumber: invoice.invoiceNumber, type: 'OUT' }
+      });
+      for (const st of outTxns) {
+        const qtyToRestore = Math.abs(Number(st.quantity));
+        await tx.stockLevel.updateMany({
+          where: { productId: st.productId, warehouseId: st.warehouseId },
+          data: { quantity: { increment: qtyToRestore } }
+        });
+      }
+      await tx.stockTransaction.deleteMany({
+        where: { refType: 'INVOICE', refNumber: invoice.invoiceNumber }
+      });
+      // 5. Delete invoice items
       await tx.invoiceItem.deleteMany({ where: { invoiceId: id } });
-      // 5. Delete the invoice
+      // 6. Delete the invoice
       await tx.invoice.delete({ where: { id } });
     });
 

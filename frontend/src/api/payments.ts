@@ -27,7 +27,7 @@ export const getPaymentById = async (id: string): Promise<Payment> => {
   return data;
 };
 
-export const createPayment = async (payload: { customerId: number, amount: number, method: string, type: 'RECEIPT' | 'REFUND', reference?: string, notes?: string }): Promise<Payment> => {
+export const createPayment = async (payload: { customerId: number, invoiceId?: number | null, amount: number, method: string, type: 'RECEIPT' | 'REFUND', reference?: string, notes?: string }): Promise<Payment> => {
   const { data } = await api.post('/payments', payload);
   return data;
 };

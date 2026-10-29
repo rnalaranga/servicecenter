@@ -74,6 +74,82 @@ export const updateSettings = async (req: Request, res: Response) => {
   }
 };
 
+export const createDatabaseBackup = async (req: Request, res: Response) => {
+  try {
+    const backendRoot = path.resolve(__dirname, '../../');
+    const dbPath = path.join(backendRoot, 'prisma', 'dev.db');
+    const backupsDir = path.join(backendRoot, 'prisma', 'backups');
+
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Database file not found' });
+    }
+
+    if (!fs.existsSync(backupsDir)) {
+      fs.mkdirSync(backupsDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const backupFileName = `backup_${timestamp}.db`;
+    const targetPath = path.join(backupsDir, backupFileName);
+
+    fs.copyFileSync(dbPath, targetPath);
+    const stats = fs.statSync(targetPath);
+
+    res.json({
+      success: true,
+      message: `Database backup created successfully (${(stats.size / 1024).toFixed(1)} KB)`,
+      fileName: backupFileName,
+      sizeBytes: stats.size,
+      createdAt: new Date().toISOString()
+    });
+  } catch (error: any) {
+    console.error('Backup error:', error);
+    res.status(500).json({ error: error?.message || 'Failed to create backup' });
+  }
+};
+
+export const downloadLatestBackup = async (req: Request, res: Response) => {
+  try {
+    const backendRoot = path.resolve(__dirname, '../../');
+    const dbPath = path.join(backendRoot, 'prisma', 'dev.db');
+
+    if (!fs.existsSync(dbPath)) {
+      return res.status(404).json({ error: 'Database file not found' });
+    }
+
+    const dateStr = new Date().toISOString().split('T')[0];
+    res.download(dbPath, `golden_erp_backup_${dateStr}.db`);
+  } catch (error: any) {
+    console.error('Download backup error:', error);
+    res.status(500).json({ error: 'Failed to download backup' });
+  }
+};
+
+export const listBackups = async (req: Request, res: Response) => {
+  try {
+    const backendRoot = path.resolve(__dirname, '../../');
+    const backupsDir = path.join(backendRoot, 'prisma', 'backups');
+
+    if (!fs.existsSync(backupsDir)) {
+      return res.json([]);
+    }
+
+    const files = fs.readdirSync(backupsDir).filter(f => f.endsWith('.db'));
+    const list = files.map(file => {
+      const stats = fs.statSync(path.join(backupsDir, file));
+      return {
+        fileName: file,
+        sizeKB: (stats.size / 1024).toFixed(1),
+        createdAt: stats.birthtime || stats.mtime
+      };
+    }).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    res.json(list);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to list backups' });
+  }
+};
+
 export const fixDatabase = async (req: Request, res: Response) => {
   try {
     const backendRoot = path.resolve(__dirname, '../../');

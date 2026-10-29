@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
-import { Plus, Search, Download, Eye, Edit, Car, Gauge, Droplet, Loader2 } from 'lucide-react'
+import { Plus, Search, Download, Eye, Edit, Car, Gauge, Droplet, Loader2, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { useQuery } from '@tanstack/react-query'
-import { getVehicles, type Vehicle } from '@/api/vehicles'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getVehicles, deleteVehicle, type Vehicle } from '@/api/vehicles'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 type SortKey = 'registration' | 'make' | 'customer' | 'jobCount' | 'lastService'
@@ -11,6 +11,7 @@ const FUEL_LABELS: Record<string, string> = { PETROL: 'Petrol', DIESEL: 'Diesel'
 
 export default function VehiclesPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [makeFilter, setMakeFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
@@ -22,6 +23,17 @@ export default function VehiclesPage() {
   const { data: vehicles = [], isLoading } = useQuery({
     queryKey: ['vehicles'],
     queryFn: getVehicles
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number | string) => deleteVehicle(id),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['vehicles'] })
+      alert(res?.message || 'Vehicle deleted successfully.')
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to delete vehicle.')
+    }
   })
 
   // Unique makes for filter
@@ -252,6 +264,18 @@ export default function VehiclesPage() {
                     </button>
                     <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => navigate(`/vehicles/${v.id}/edit`)}>
                       <Edit size={13} />
+                    </button>
+                    <button 
+                      className="btn btn-ghost btn-icon btn-sm" 
+                      title="Delete Vehicle" 
+                      style={{ color: 'var(--color-danger)' }}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete vehicle "${v.registration}"?`)) {
+                          deleteMut.mutate(v.id)
+                        }
+                      }}
+                    >
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </td>

@@ -10,7 +10,9 @@ export const getCustomerBalances = async (req: Request, res: Response) => {
     });
 
     const balances = customers.map(c => {
-      let balance = Number(c.openingBalance || 0);
+      // Prevent double counting if opening balance was already posted as a ledger entry
+      const hasObInLedger = c.ledger.some(entry => entry.type === 'OPENING_BALANCE');
+      let balance = hasObInLedger ? 0 : Number(c.openingBalance || 0);
       c.ledger.forEach(entry => {
         balance += Number(entry.debit);
         balance -= Number(entry.credit);

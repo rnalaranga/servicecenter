@@ -41,3 +41,13 @@ export const fixDatabase = async (): Promise<{ success: boolean; message: string
   const { data } = await api.post('/system/fix-database');
   return data;
 };
+
+export const createDatabaseBackup = async (): Promise<{ success: boolean; message: string; fileName: string; sizeBytes: number; createdAt: string }> => {
+  const { data } = await api.post('/system/backup');
+  return data;
+};
+
+export const getBackups = async (): Promise<{ fileName: string; sizeKB: string; createdAt: string }[]> => {
+  const { data } = await api.get('/system/backups');
+  return data;
+};

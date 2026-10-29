@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Save, Building2, Banknote, FileText, Image, Database, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Save, Building2, Banknote, FileText, Image, Database, CheckCircle2, AlertCircle, Download, ShieldCheck, History, HardDrive } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { getSettings, updateSettings, fixDatabase } from '@/api/system'
+import { getSettings, updateSettings, fixDatabase, createDatabaseBackup, getBackups } from '@/api/system'
 import { useToast } from '@/contexts/ToastContext'
 
 export default function SettingsPage() {
@@ -9,6 +9,7 @@ export default function SettingsPage() {
   const { success: toastSuccess, error: toastError } = useToast()
   const [activeTab, setActiveTab] = useState('general')
   const [isFixingDb, setIsFixingDb] = useState(false)
+  const [isBackingUp, setIsBackingUp] = useState(false)
   const [dbSyncResult, setDbSyncResult] = useState<{ success: boolean; message: string; output?: string } | null>(null)
   
   const [formData, setFormData] = useState<Record<string, string>>({
@@ -33,6 +34,24 @@ export default function SettingsPage() {
     queryKey: ['settings'], 
     queryFn: getSettings 
   })
+
+  const { data: backups = [], refetch: refetchBackups } = useQuery({
+    queryKey: ['backups'],
+    queryFn: getBackups
+  })
+
+  const handleCreateBackup = async () => {
+    setIsBackingUp(true)
+    try {
+      const res = await createDatabaseBackup()
+      toastSuccess('Backup Created', res.message)
+      refetchBackups()
+    } catch (err: any) {
+      toastError('Backup Failed', err?.response?.data?.error || 'Could not create backup')
+    } finally {
+      setIsBackingUp(false)
+    }
+  }
 
   // Load existing settings into state
   useEffect(() => {
@@ -350,6 +369,73 @@ export default function SettingsPage() {
 
               {activeTab === 'database' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  
+                  {/* Database Backup & Disaster Recovery Section */}
+                  <div style={{
+                    padding: 20,
+                    borderRadius: 8,
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 16
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <HardDrive size={18} style={{ color: 'var(--color-gold-primary)' }} /> Automated Database Backups & Data Safety
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                          Protect your business records. Create offline timestamped backups or download the active database file.
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={handleCreateBackup}
+                          disabled={isBackingUp}
+                          style={{ gap: 6 }}
+                        >
+                          <ShieldCheck size={15} style={{ color: 'var(--color-gold-primary)' }} />
+                          {isBackingUp ? 'Backing up...' : 'Create Backup Snapshot'}
+                        </button>
+                        <a
+                          href="/api/system/backup/download"
+                          className="btn btn-primary"
+                          download
+                          style={{ gap: 6, textDecoration: 'none' }}
+                        >
+                          <Download size={15} />
+                          Download Live Database (.db)
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Previous Backups List */}
+                    {backups.length > 0 && (
+                      <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <History size={13} /> Existing Backup Snapshots ({backups.length}):
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 150, overflowY: 'auto' }}>
+                          {backups.map((b, idx) => (
+                            <div key={idx} style={{
+                              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                              padding: '8px 12px', background: 'var(--hover)', borderRadius: 6, fontSize: 12
+                            }}>
+                              <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{b.fileName}</span>
+                              <div style={{ display: 'flex', gap: 12, color: 'var(--text-subtle)' }}>
+                                <span>{b.sizeKB} KB</span>
+                                <span>{new Date(b.createdAt).toLocaleString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div>
                     <h3 style={{ fontSize: 16, fontWeight: 600, borderBottom: '1px solid var(--border)', paddingBottom: 12 }}>
                       Database Maintenance & Schema Repair

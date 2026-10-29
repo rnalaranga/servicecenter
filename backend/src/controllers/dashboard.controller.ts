@@ -12,7 +12,11 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
     // 1. KPI: Today's Sales
     const todayInvoices = await prisma.invoice.findMany({
-      where: { date: { gte: today }, status: { not: 'CANCELLED' } }
+      where: {
+        date: { gte: today },
+        isQuotation: false,
+        status: { notIn: ['CANCELLED', 'QUOTATION'] }
+      }
     });
     const todaySales = todayInvoices.reduce((sum, inv) => sum + Number(inv.total), 0);
 
@@ -23,7 +27,11 @@ export const getDashboardData = async (req: Request, res: Response) => {
 
     // 3. KPI: Customer Outstanding
     const unpaidInvoices = await prisma.invoice.findMany({
-      where: { balance: { gt: 0 }, status: { not: 'CANCELLED' } }
+      where: {
+        balance: { gt: 0 },
+        isQuotation: false,
+        status: { notIn: ['CANCELLED', 'QUOTATION'] }
+      }
     });
     const customerOutstanding = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
 
@@ -78,7 +86,8 @@ export const getDashboardData = async (req: Request, res: Response) => {
       const dayInvoices = await prisma.invoice.findMany({
         where: {
           date: { gte: d, lt: nextD },
-          status: { not: 'CANCELLED' }
+          isQuotation: false,
+          status: { notIn: ['CANCELLED', 'QUOTATION'] }
         },
         include: {
           items: { include: { product: true } },
@@ -206,8 +215,12 @@ export const getDashboardData = async (req: Request, res: Response) => {
       };
     });
 
-    // Recent Invoices
+    // Recent Invoices (Excluding Quotations)
     const recentInvoicesData = await prisma.invoice.findMany({
+      where: {
+        isQuotation: false,
+        status: { notIn: ['CANCELLED', 'QUOTATION'] }
+      },
       take: 5,
       orderBy: { createdAt: 'desc' },
       include: { customer: true }

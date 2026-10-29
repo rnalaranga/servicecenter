@@ -160,3 +160,47 @@ export const updateVehicle = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to update vehicle' });
   }
 };
+
+export const deleteVehicle = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            jobCards: true,
+            invoices: true,
+            maintenanceReminders: true
+          }
+        }
+      }
+    });
+
+    if (!vehicle) return res.status(404).json({ error: 'Vehicle not found' });
+
+    if (vehicle._count.invoices > 0) {
+      return res.status(400).json({
+        error: `Cannot delete vehicle "${vehicle.registration}". It is linked to ${vehicle._count.invoices} invoice(s). Change or unlink the vehicle on those invoices first.`
+      });
+    }
+
+    if (vehicle._count.jobCards > 0) {
+      return res.status(400).json({
+        error: `Cannot delete vehicle "${vehicle.registration}". It is linked to ${vehicle._count.jobCards} job card(s). Delete those job cards first.`
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.vehiclePhoto.deleteMany({ where: { vehicleId: id } });
+      await tx.maintenanceReminder.deleteMany({ where: { vehicleId: id } });
+      await tx.vehicle.delete({ where: { id } });
+    });
+
+    res.json({ message: `Vehicle "${vehicle.registration}" deleted successfully.` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete vehicle' });
+  }
+};

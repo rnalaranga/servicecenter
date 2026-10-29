@@ -6,7 +6,10 @@ export const getSalesReports = async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
 
-    const query: any = {};
+    const query: any = {
+      isQuotation: false,
+      status: { notIn: ['CANCELLED', 'QUOTATION'] }
+    };
     if (startDate && endDate) {
       const start = new Date(startDate as string);
       start.setHours(0, 0, 0, 0);
@@ -132,7 +135,8 @@ export const getProfitabilityReports = async (req: Request, res: Response) => {
     const invoices = await prisma.invoice.findMany({
       where: {
         ...query,
-        status: { not: 'CANCELLED' }
+        isQuotation: false,
+        status: { notIn: ['CANCELLED', 'QUOTATION'] }
       },
       include: {
         items: {
@@ -238,7 +242,11 @@ export const getFinancialReports = async (req: Request, res: Response) => {
 
     // 3. Accounts Receivable (Unpaid Invoices)
     const unpaidInvoices = await prisma.invoice.findMany({
-      where: { balance: { gt: 0 }, status: { not: 'CANCELLED' } }
+      where: {
+        balance: { gt: 0 },
+        isQuotation: false,
+        status: { notIn: ['CANCELLED', 'QUOTATION'] }
+      }
     });
     const accountsReceivable = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
 

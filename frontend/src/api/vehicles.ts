@@ -48,3 +48,8 @@ export const updateVehicle = async (id: string, vehicle: Partial<Vehicle>) => {
   const { data } = await api.put(`/vehicles/${id}`, vehicle);
   return data;
 };
+
+export const deleteVehicle = async (id: string | number): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/vehicles/${id}`);
+  return data;
+};

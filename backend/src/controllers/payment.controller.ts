@@ -49,6 +49,7 @@ export const getPaymentById = async (req: Request, res: Response) => {
 
 const createPaymentSchema = z.object({
   customerId: z.number(),
+  invoiceId: z.number().optional().nullable(),
   amount: z.number().min(0.01),
   method: z.string().default('CASH'),
   type: z.enum(['RECEIPT', 'REFUND']).default('RECEIPT'),
@@ -59,7 +60,6 @@ const createPaymentSchema = z.object({
 export const createPayment = async (req: Request, res: Response) => {
   try {
     const data = createPaymentSchema.parse(req.body);
-
     const paymentNumber = await generatePaymentNumber();
 
     const payment = await prisma.$transaction(async (tx) => {
@@ -68,6 +68,7 @@ export const createPayment = async (req: Request, res: Response) => {
         data: {
           paymentNumber,
           customerId: data.customerId,
+          invoiceId: data.invoiceId || null,
           date: new Date(),
           amount: data.type === 'REFUND' ? -Math.abs(data.amount) : Math.abs(data.amount),
           method: data.method,
@@ -75,21 +76,87 @@ export const createPayment = async (req: Request, res: Response) => {
           notes: data.notes
         },
         include: {
-          customer: true
+          customer: true,
+          invoice: true
         }
       });
 
-      // 2. Add credit to customer ledger
+      // 2. Invoice Settlement (If specific invoice selected or auto-settle unpaid invoices FIFO)
+      if (data.type === 'RECEIPT') {
+        let remainingToApply = Math.abs(data.amount);
+
+        if (data.invoiceId) {
+          const targetInv = await tx.invoice.findUnique({ where: { id: data.invoiceId } });
+          if (targetInv) {
+            const applyAmount = Math.min(remainingToApply, Number(targetInv.balance));
+            const newPaid = Number(targetInv.amountPaid) + applyAmount;
+            const newBal = Math.max(0, Number(targetInv.total) - newPaid);
+            const newStatus = newBal <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : targetInv.status);
+
+            await tx.invoice.update({
+              where: { id: targetInv.id },
+              data: {
+                amountPaid: newPaid,
+                balance: newBal,
+                status: newStatus
+              }
+            });
+          }
+        } else {
+          // Auto-settle oldest unpaid invoices for this customer
+          const unpaidInvoices = await tx.invoice.findMany({
+            where: {
+              customerId: data.customerId,
+              balance: { gt: 0 },
+              isQuotation: false,
+              status: { notIn: ['CANCELLED', 'QUOTATION'] }
+            },
+            orderBy: { date: 'asc' }
+          });
+
+          for (const inv of unpaidInvoices) {
+            if (remainingToApply <= 0) break;
+            const applyAmount = Math.min(remainingToApply, Number(inv.balance));
+            const newPaid = Number(inv.amountPaid) + applyAmount;
+            const newBal = Math.max(0, Number(inv.total) - newPaid);
+            const newStatus = newBal <= 0 ? 'PAID' : (newPaid > 0 ? 'PARTIAL' : inv.status);
+
+            await tx.invoice.update({
+              where: { id: inv.id },
+              data: {
+                amountPaid: newPaid,
+                balance: newBal,
+                status: newStatus
+              }
+            });
+            remainingToApply -= applyAmount;
+          }
+        }
+      }
+
+      // 3. Compute accurate Customer Ledger running balance
+      const lastLedger = await tx.customerLedger.findFirst({
+        where: { customerId: data.customerId },
+        orderBy: { id: 'desc' }
+      });
+      let runningBalance = lastLedger ? Number(lastLedger.balance) : 0;
+      const netAmount = data.type === 'REFUND' ? Math.abs(data.amount) : -Math.abs(data.amount);
+      runningBalance += netAmount;
+
+      // 4. Add to customer ledger
       await tx.customerLedger.create({
         data: {
           customerId: data.customerId,
+          invoiceId: data.invoiceId || null,
+          paymentId: pay.id,
           date: new Date(),
           type: data.type === 'REFUND' ? 'REFUND' : 'PAYMENT',
-          paymentId: pay.id,
+          refType: 'PAYMENT',
+          refNumber: paymentNumber,
           description: data.type === 'REFUND' ? `Payment Refund: ${paymentNumber}` : `Payment Receipt: ${paymentNumber}`,
           debit: data.type === 'REFUND' ? Math.abs(data.amount) : 0,
           credit: data.type === 'RECEIPT' ? Math.abs(data.amount) : 0,
-          balance: 0
+          balance: runningBalance
         }
       });
 

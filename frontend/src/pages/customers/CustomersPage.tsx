@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Plus, Search, Download, Eye, Edit, Phone, Mail, Car, Building2, User, TrendingDown, Filter, Loader2 } from 'lucide-react'
+import { Plus, Search, Download, Eye, Edit, Phone, Mail, Car, Building2, User, TrendingDown, Filter, Loader2, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
-import { useQuery } from '@tanstack/react-query'
-import { getCustomers, type Customer } from '@/api/customers'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { getCustomers, deleteCustomer, type Customer } from '@/api/customers'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtLKR(n: number) {
@@ -35,6 +35,7 @@ type SortKey = 'name' | 'outstanding' | 'vehicles' | 'lastVisit'
 
 export default function CustomersPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [search, setSearch] = useState('')
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'INDIVIDUAL' | 'BUSINESS'>('ALL')
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
@@ -46,6 +47,17 @@ export default function CustomersPage() {
   const { data: customers = [], isLoading } = useQuery({
     queryKey: ['customers'],
     queryFn: getCustomers
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id: number | string) => deleteCustomer(id),
+    onSuccess: (res: any) => {
+      queryClient.invalidateQueries({ queryKey: ['customers'] })
+      alert(res?.message || 'Customer deleted successfully.')
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to delete customer.')
+    }
   })
 
   // Filter + sort
@@ -294,6 +306,18 @@ export default function CustomersPage() {
                     </button>
                     <button className="btn btn-ghost btn-icon btn-sm" title="Edit" onClick={() => navigate(`/customers/${c.id}/edit`)}>
                       <Edit size={13} />
+                    </button>
+                    <button 
+                      className="btn btn-ghost btn-icon btn-sm" 
+                      title="Delete Customer" 
+                      style={{ color: 'var(--color-danger)' }}
+                      onClick={() => {
+                        if (confirm(`Are you sure you want to delete customer "${c.name}"?`)) {
+                          deleteMut.mutate(c.id)
+                        }
+                      }}
+                    >
+                      <Trash2 size={13} />
                     </button>
                   </div>
                 </td>

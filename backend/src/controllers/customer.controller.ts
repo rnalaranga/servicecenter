@@ -225,3 +225,60 @@ export const updateCustomer = async (req: Request, res: Response) => {
     res.status(500).json({ error: 'Failed to update customer' });
   }
 };
+
+export const deleteCustomer = async (req: Request, res: Response) => {
+  try {
+    const id = Number(req.params.id);
+
+    const customer = await prisma.customer.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            jobCards: true,
+            invoices: true,
+            payments: true,
+            vehicles: true
+          }
+        }
+      }
+    });
+
+    if (!customer) return res.status(404).json({ error: 'Customer not found' });
+
+    // Block deletion if active financial audit records exist
+    if (customer._count.invoices > 0 || customer._count.payments > 0) {
+      return res.status(400).json({
+        error: `Cannot delete customer "${customer.name}". This customer is linked to ${customer._count.invoices} invoice(s) and ${customer._count.payments} payment(s). Delete or reassign their invoices first.`
+      });
+    }
+
+    if (customer._count.jobCards > 0) {
+      return res.status(400).json({
+        error: `Cannot delete customer "${customer.name}". This customer has ${customer._count.jobCards} job card(s). Delete their job cards first.`
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // 1. Delete reminders
+      await tx.maintenanceReminder.deleteMany({ where: { customerId: id } });
+      // 2. Delete customer ledger
+      await tx.customerLedger.deleteMany({ where: { customerId: id } });
+      // 3. Delete vehicle photos
+      const custVehicles = await tx.vehicle.findMany({ where: { customerId: id }, select: { id: true } });
+      const vehicleIds = custVehicles.map(v => v.id);
+      if (vehicleIds.length > 0) {
+        await tx.vehiclePhoto.deleteMany({ where: { vehicleId: { in: vehicleIds } } });
+      }
+      // 4. Delete customer vehicles
+      await tx.vehicle.deleteMany({ where: { customerId: id } });
+      // 5. Delete customer
+      await tx.customer.delete({ where: { id } });
+    });
+
+    res.json({ message: `Customer "${customer.name}" and associated records deleted successfully.` });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to delete customer' });
+  }
+};

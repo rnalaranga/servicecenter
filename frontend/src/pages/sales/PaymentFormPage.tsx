@@ -4,6 +4,7 @@ import { ArrowLeft, Save, AlertCircle, Search, Check, DollarSign } from 'lucide-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createPayment } from '@/api/payments'
 import { getCustomers } from '@/api/customers'
+import { getInvoices } from '@/api/invoices'
 import { useToast } from '@/contexts/ToastContext'
 
 export default function PaymentFormPage() {
@@ -12,6 +13,7 @@ export default function PaymentFormPage() {
   const queryClient = useQueryClient()
 
   const [customerId, setCustomerId] = useState('')
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('')
   const [customerSearch, setCustomerSearch] = useState('')
   const [showCustDropdown, setShowCustDropdown] = useState(false)
   const custWrapperRef = useRef<HTMLDivElement>(null)
@@ -24,6 +26,11 @@ export default function PaymentFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const { data: customers = [] } = useQuery({ queryKey: ['customers'], queryFn: getCustomers })
+  const { data: allInvoices = [] } = useQuery({ queryKey: ['invoices'], queryFn: getInvoices })
+
+  const customerUnpaidInvoices = allInvoices.filter(
+    inv => String(inv.customerId) === customerId && Number(inv.balance) > 0 && !inv.isQuotation && inv.status !== 'CANCELLED'
+  )
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -49,6 +56,7 @@ export default function PaymentFormPage() {
     onSuccess: (pay) => {
       queryClient.invalidateQueries({ queryKey: ['payments'] })
       queryClient.invalidateQueries({ queryKey: ['customers'] })
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
       success('Payment Recorded', `Receipt ${pay.paymentNumber} generated successfully.`)
       navigate('/payments')
     },
@@ -59,6 +67,7 @@ export default function PaymentFormPage() {
     if (!validate()) return
     createMut.mutate({ 
       customerId: Number(customerId), 
+      invoiceId: selectedInvoiceId ? Number(selectedInvoiceId) : null,
       amount: Number(amount),
       method,
       type,
@@ -159,6 +168,13 @@ export default function PaymentFormPage() {
                     <div 
                       key={c.id}
                       style={{ padding: '10px 12px', cursor: 'pointer', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 8 }}
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                        setCustomerId(String(c.id))
+                        setCustomerSearch(`${c.name} (${c.mobile})`)
+                        setShowCustDropdown(false)
+                        if (errors.customerId) setErrors(e => { const n={...e}; delete n.customerId; return n })
+                      }}
                       onClick={() => {
                         setCustomerId(String(c.id))
                         setCustomerSearch(`${c.name} (${c.mobile})`)
@@ -201,6 +217,36 @@ export default function PaymentFormPage() {
                     Refund Full Credit
                   </button>
                 )}
+              </div>
+            )}
+
+            {/* Settle Specific Invoice (Optional) */}
+            {customerId && type === 'RECEIPT' && customerUnpaidInvoices.length > 0 && (
+              <div className="form-group">
+                <label className="form-label">Allocate Payment to Invoice (Optional)</label>
+                <select
+                  className="form-input"
+                  value={selectedInvoiceId}
+                  onChange={e => {
+                    const invId = e.target.value
+                    setSelectedInvoiceId(invId)
+                    const target = customerUnpaidInvoices.find(i => String(i.id) === invId)
+                    if (target) {
+                      setAmount(String(target.balance))
+                    }
+                  }}
+                  style={{ appearance: 'auto' }}
+                >
+                  <option value="">-- Auto-allocate FIFO across oldest unpaid invoices (Default) --</option>
+                  {customerUnpaidInvoices.map(inv => (
+                    <option key={inv.id} value={inv.id}>
+                      {inv.invoiceNumber} · Balance Due: LKR {Number(inv.balance).toLocaleString('en-LK')} ({inv.status})
+                    </option>
+                  ))}
+                </select>
+                <span className="form-hint" style={{ color: 'var(--color-gold-primary)', marginTop: 4 }}>
+                  {selectedInvoiceId ? '✨ This payment will settle the selected invoice directly.' : '✨ Payment will automatically settle the customer\'s oldest unpaid invoices.'}
+                </span>
               </div>
             )}
 

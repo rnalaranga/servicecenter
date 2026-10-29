@@ -49,3 +49,8 @@ export const updateCustomer = async (id: string, customer: Partial<Customer>) =>
   const { data } = await api.put(`/customers/${id}`, customer);
   return data;
 };
+
+export const deleteCustomer = async (id: string | number): Promise<{ message: string }> => {
+  const { data } = await api.delete(`/customers/${id}`);
+  return data;
+};
