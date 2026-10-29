@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2, FileCheck, Car, Plus, Check, Loader2 } from 'lucide-react'
+import { ArrowLeft, Printer, CreditCard, X, CheckCircle2, Clock, Trash2, FileCheck, Car, Plus, Check, Loader2, Bell } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getInvoiceById, recordPayment, deleteInvoice, convertQuotationToInvoice, updateInvoice } from '@/api/invoices'
+import { getReminders } from '@/api/reminders'
 import { getVehiclesByCustomerId, createVehicle, type Vehicle } from '@/api/vehicles'
 import { getSettings } from '@/api/system'
 import { format, parseISO } from 'date-fns'
@@ -90,6 +91,13 @@ export default function InvoiceProfilePage() {
     queryKey: ['vehicles', 'customer', invoice?.customerId],
     queryFn: () => getVehiclesByCustomerId(String(invoice!.customerId)),
     enabled: !!invoice?.customerId && showVehicleModal
+  })
+
+  const targetVehicleId = invoice?.vehicleId || invoice?.vehicle?.id || invoice?.jobCards?.[0]?.jobCard?.vehicleId
+  const { data: invoiceReminders = [] } = useQuery({
+    queryKey: ['reminders', 'vehicle', targetVehicleId],
+    queryFn: () => getReminders({ vehicleId: targetVehicleId }),
+    enabled: !!targetVehicleId
   })
 
   const assignVehicleMut = useMutation({
@@ -236,6 +244,84 @@ export default function InvoiceProfilePage() {
             </button>
           )}
         </div>
+      </div>
+
+      {/* ── PERIODIC MAINTENANCE & COATING WARRANTY SCHEDULE CARD ── */}
+      <div className="no-print card" style={{ maxWidth: 850, margin: '0 auto 20px', padding: 18, border: '1.5px solid var(--color-gold-primary)', background: 'rgba(212, 175, 55, 0.05)', boxShadow: '0 4px 12px rgba(212, 175, 55, 0.1)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: invoiceReminders.length > 0 ? 12 : 0, flexWrap: 'wrap', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 8,
+              background: 'linear-gradient(135deg, #D4AF37, #B8860B)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: '#0F1115'
+            }}>
+              <Bell size={18} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                Periodic Maintenance & Coating Warranty Schedule
+                <span className="badge badge-gold" style={{ fontSize: 11, fontWeight: 700 }}>
+                  {invoiceReminders.length} Scheduled Checkup(s)
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                {vehicle ? `Vehicle: ${vehicle.registration} (${vehicle.make} ${vehicle.model})` : 'Vehicle periodic maintenance reminders'}
+              </div>
+            </div>
+          </div>
+
+          <button
+            className="btn btn-secondary btn-xs"
+            onClick={() => navigate('/reminders')}
+            style={{ gap: 4 }}
+          >
+            Open Reminders Center
+          </button>
+        </div>
+
+        {invoiceReminders.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10, marginTop: 12 }}>
+            {invoiceReminders.map(r => (
+              <div key={r.id} style={{ background: 'var(--surface)', padding: '10px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span className="badge badge-outline" style={{ fontWeight: 700, fontSize: 10 }}>
+                    {r.intervalLabel}
+                  </span>
+                  <span className={`badge ${r.status === 'COMPLETED' ? 'badge-completed' : r.status === 'SCHEDULED' ? 'badge-open' : 'badge-draft'}`} style={{ fontSize: 10 }}>
+                    {r.status === 'COMPLETED' ? '✅ Done' : r.status === 'SCHEDULED' ? '🗓 Re-scheduled' : '⏳ Pending'}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+                  Due: {format(new Date(r.reminderDate), 'MMM dd, yyyy')}
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {r.serviceName}
+                </div>
+                {r.notes && (
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4, fontStyle: 'italic', background: 'var(--hover)', padding: '2px 6px', borderRadius: 4 }}>
+                    "{r.notes}"
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+              No maintenance reminders scheduled for this vehicle yet.
+            </span>
+            {vehicle?.id && (
+              <button
+                className="btn btn-primary btn-xs"
+                onClick={() => navigate(`/reminders?action=new&customerId=${invoice.customerId}&vehicleId=${vehicle.id}&serviceName=${encodeURIComponent(invoice.items?.[0]?.description || 'Ceramic Coating Warranty')}`)}
+                style={{ gap: 4 }}
+              >
+                <Plus size={12} /> + Set Up Maintenance Reminders
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Sri Lanka IRD Format Invoice Paper */}

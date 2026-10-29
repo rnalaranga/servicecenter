@@ -56,8 +56,9 @@ export const getInvoiceById = async (id: string): Promise<Invoice> => {
   return data;
 };
 
-export const generateInvoiceFromJobCard = async (jobCardId: string): Promise<Invoice> => {
-  const { data } = await api.post('/invoices/from-job-card', { jobCardId });
+export const generateInvoiceFromJobCard = async (params: string | { jobCardId: string | number; maintenanceSchedule?: MaintenanceSchedulePayload | null }): Promise<Invoice> => {
+  const payload = typeof params === 'string' ? { jobCardId: params } : params;
+  const { data } = await api.post('/invoices/from-job-card', payload);
   return data;
 };
 

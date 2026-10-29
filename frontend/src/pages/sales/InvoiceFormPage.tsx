@@ -123,7 +123,7 @@ export default function InvoiceFormPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   // Periodic Maintenance & Coating Warranty Schedule
-  const [enableMaintenanceSchedule, setEnableMaintenanceSchedule] = useState(false)
+  const [enableMaintenanceSchedule, setEnableMaintenanceSchedule] = useState(true)
   const [maintenanceServiceName, setMaintenanceServiceName] = useState('')
   const [scheduleIntervals, setScheduleIntervals] = useState<Array<{
     id: string;
@@ -313,14 +313,10 @@ export default function InvoiceFormPage() {
       error('Items Required', 'Please add at least one line item to the document.')
     }
 
-    if (enableMaintenanceSchedule) {
+    if (scheduleIntervals.length > 0) {
       if (!vehicleId) {
         e.vehicleId = 'Please select a vehicle to schedule maintenance reminders'
         error('Vehicle Required', 'A vehicle registration must be selected to schedule maintenance reminders.')
-      }
-      if (scheduleIntervals.length === 0) {
-        e.maintenanceSchedule = 'Please add at least one maintenance milestone or turn off maintenance scheduling'
-        error('Milestones Required', 'Please add at least one checkup milestone or turn off the maintenance schedule.')
       }
     }
 
@@ -355,7 +351,7 @@ export default function InvoiceFormPage() {
       discount: Number(i.discount) || 0
     }))
 
-    const maintenanceSchedulePayload = enableMaintenanceSchedule && scheduleIntervals.length > 0 ? {
+    const maintenanceSchedulePayload = scheduleIntervals.length > 0 ? {
       serviceName: maintenanceServiceName.trim() || validItems[0]?.description || 'Periodic Maintenance',
       intervals: scheduleIntervals.map(i => ({
         intervalLabel: i.intervalLabel.trim(),
@@ -860,284 +856,291 @@ export default function InvoiceFormPage() {
 
             {/* ── PERIODIC MAINTENANCE & COATING WARRANTY SCHEDULE BUILDER ── */}
             <div style={{
-              background: enableMaintenanceSchedule ? 'rgba(212, 175, 55, 0.04)' : 'var(--surface)',
-              border: enableMaintenanceSchedule ? '1.5px solid var(--color-gold-primary)' : '1px solid var(--border)',
+              background: 'rgba(212, 175, 55, 0.05)',
+              border: '2px solid var(--color-gold-primary)',
               borderRadius: 10,
               padding: 20,
-              transition: 'all 0.2s ease',
+              boxShadow: '0 4px 14px rgba(212, 175, 55, 0.12)',
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
-                    width: 36, height: 36, borderRadius: 8,
-                    background: enableMaintenanceSchedule ? 'linear-gradient(135deg, #D4AF37, #B8860B)' : 'var(--hover)',
+                    width: 40, height: 40, borderRadius: 10,
+                    background: 'linear-gradient(135deg, #D4AF37, #B8860B)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    color: enableMaintenanceSchedule ? '#0F1115' : 'var(--text-muted)'
+                    color: '#0F1115'
                   }}>
-                    <Bell size={18} />
+                    <Bell size={20} />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                       Periodic Maintenance & Coating Warranty Schedule
-                      {scheduleIntervals.length > 0 && enableMaintenanceSchedule && (
-                        <span className="badge badge-gold" style={{ fontSize: 11 }}>
-                          {scheduleIntervals.length} Reminders Scheduled
+                      {scheduleIntervals.length > 0 ? (
+                        <span className="badge badge-gold" style={{ fontSize: 11, fontWeight: 700 }}>
+                          {scheduleIntervals.length} Reminders Configured
+                        </span>
+                      ) : (
+                        <span className="badge badge-draft" style={{ fontSize: 11 }}>
+                          Optional
                         </span>
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      Schedule automated milestone checkups (e.g. 3 Weeks, 6 Weeks, 3 Months, 6 Months, 1 Year) for this customer and vehicle upon invoicing.
+                      Schedule automated milestone checkups (e.g. 3 Weeks, 6 Weeks, 3 Months, 6 Months, 1 Year) for this vehicle upon saving.
                     </div>
                   </div>
                 </div>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', background: 'var(--hover)', padding: '6px 14px', borderRadius: 20, border: '1px solid var(--border)' }}>
-                  <input
-                    type="checkbox"
-                    checked={enableMaintenanceSchedule}
-                    onChange={e => {
-                      setEnableMaintenanceSchedule(e.target.checked)
-                      if (e.target.checked && scheduleIntervals.length === 0) {
-                        applyPreset('3W_6M_1Y')
-                      }
-                    }}
-                    style={{ cursor: 'pointer' }}
-                  />
-                  <span style={{ fontSize: 13, fontWeight: 600, color: enableMaintenanceSchedule ? 'var(--color-gold-primary)' : 'var(--text)' }}>
-                    {enableMaintenanceSchedule ? 'Schedule Enabled' : 'Enable Maintenance Schedule'}
-                  </span>
-                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {scheduleIntervals.length > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ color: 'var(--color-danger)' }}
+                      onClick={() => setScheduleIntervals([])}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    style={{ gap: 6, fontSize: 12 }}
+                    onClick={() => applyPreset('3W_6M_1Y')}
+                  >
+                    ⚡ Auto-Fill 3W + 6M + 1Y
+                  </button>
+                </div>
               </div>
 
-              {enableMaintenanceSchedule && (
-                <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                  
-                  {/* Service Package / Job Name */}
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) auto', gap: 14, alignItems: 'flex-end', marginBottom: 16 }}>
-                    <div>
-                      <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>
-                        Primary Service / Coating Description for Reminders
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="e.g. 9H Ceramic Coating, Graphene Coating, Underbody Protection..."
-                        value={maintenanceServiceName}
-                        onChange={e => setMaintenanceServiceName(e.target.value)}
-                      />
-                    </div>
-
-                    {/* Quick Preset Buttons */}
-                    <div>
-                      <label className="form-label" style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
-                        Quick Presets:
-                      </label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => applyPreset('3W_6M_1Y')}
-                          title="3 Weeks inspection + 6 Months booster + 1 Year check"
-                        >
-                          ⚡ 3W + 6M + 1Y
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => applyPreset('2YR')}
-                          title="3W, 6M, 1Y, 18M, 2Y"
-                        >
-                          2-Year Coating
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => applyPreset('3YR')}
-                          title="3W, 6M, 1Y, 2Y, 3Y"
-                        >
-                          3-Year Coating
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => applyPreset('5YR')}
-                          title="3W, 6M, 1Y, 2Y, 3Y, 4Y, 5Y"
-                        >
-                          5-Year Coating
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-xs"
-                          onClick={() => applyPreset('GENERAL')}
-                          title="3 Months + 6 Months General Service"
-                        >
-                          General (3M + 6M)
-                        </button>
-                      </div>
-                    </div>
+              <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                
+                {/* Service Package / Job Name */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(240px, 1fr) auto', gap: 14, alignItems: 'flex-end', marginBottom: 16 }}>
+                  <div>
+                    <label className="form-label" style={{ fontSize: 12, marginBottom: 4 }}>
+                      Primary Service / Coating Description for Reminders
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="e.g. 9H Ceramic Coating, Graphene Coating, Underbody Protection..."
+                      value={maintenanceServiceName}
+                      onChange={e => setMaintenanceServiceName(e.target.value)}
+                    />
                   </div>
 
-                  {/* Quick Add Custom Random Interval Chips */}
-                  <div style={{
-                    background: 'var(--bg)',
-                    padding: '10px 14px',
-                    borderRadius: 8,
-                    border: '1px dashed var(--border)',
-                    marginBottom: 16,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: 10
-                  }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-                      + Add Flexible Interval:
-                    </div>
+                  {/* Quick Preset Buttons */}
+                  <div>
+                    <label className="form-label" style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>
+                      Quick Presets:
+                    </label>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                        onClick={() => addCustomInterval('3 Weeks', 21)}
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => applyPreset('3W_6M_1Y')}
+                        title="3 Weeks inspection + 6 Months booster + 1 Year check"
                       >
-                        + 3 Weeks
+                        ⚡ 3W + 6M + 1Y
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                        onClick={() => addCustomInterval('6 Weeks', 42)}
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => applyPreset('2YR')}
+                        title="3W, 6M, 1Y, 18M, 2Y"
                       >
-                        + 6 Weeks
+                        2-Year Coating
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                        onClick={() => addCustomInterval('3 Months', undefined, 3)}
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => applyPreset('3YR')}
+                        title="3W, 6M, 1Y, 2Y, 3Y"
                       >
-                        + 3 Months
+                        3-Year Coating
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                        onClick={() => addCustomInterval('6 Months', undefined, 6)}
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => applyPreset('5YR')}
+                        title="3W, 6M, 1Y, 2Y, 3Y, 4Y, 5Y"
                       >
-                        + 6 Months
+                        5-Year Coating
                       </button>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                        onClick={() => addCustomInterval('1 Year', undefined, 12)}
+                        className="btn btn-secondary btn-xs"
+                        onClick={() => applyPreset('GENERAL')}
+                        title="3 Months + 6 Months General Service"
                       >
-                        + 1 Year
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ background: 'var(--surface)', border: '1px solid var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
-                        onClick={() => addCustomInterval('Custom Checkup', 30)}
-                      >
-                        + Custom Date
+                        General (3M + 6M)
                       </button>
                     </div>
                   </div>
-
-                  {/* Milestone Interval Rows */}
-                  {scheduleIntervals.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '24px 16px', color: 'var(--text-muted)', fontSize: 13 }}>
-                      No milestones added yet. Click one of the quick presets or interval buttons above to add checkups.
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '130px 145px 1fr 1fr 36px', gap: 10, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 8px' }}>
-                        <div>Milestone Label</div>
-                        <div>Target Due Date</div>
-                        <div>Task / Service Description</div>
-                        <div>Special Notes</div>
-                        <div></div>
-                      </div>
-
-                      {scheduleIntervals.map((milestone) => (
-                        <div
-                          key={milestone.id}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '130px 145px 1fr 1fr 36px',
-                            gap: 10,
-                            alignItems: 'center',
-                            background: 'var(--surface)',
-                            border: '1px solid var(--border)',
-                            borderRadius: 8,
-                            padding: '8px 10px',
-                          }}
-                        >
-                          <div>
-                            <input
-                              type="text"
-                              className="form-input"
-                              style={{ fontSize: 12, padding: '6px 8px' }}
-                              value={milestone.intervalLabel}
-                              onChange={e => updateInterval(milestone.id, 'intervalLabel', e.target.value)}
-                              placeholder="e.g. 3 Weeks"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="date"
-                              className="form-input"
-                              style={{ fontSize: 12, padding: '6px 8px' }}
-                              value={milestone.reminderDate}
-                              onChange={e => updateInterval(milestone.id, 'reminderDate', e.target.value)}
-                              required
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="text"
-                              className="form-input"
-                              style={{ fontSize: 12, padding: '6px 8px' }}
-                              value={milestone.serviceName}
-                              onChange={e => updateInterval(milestone.id, 'serviceName', e.target.value)}
-                              placeholder="Service or task name"
-                            />
-                          </div>
-                          <div>
-                            <input
-                              type="text"
-                              className="form-input"
-                              style={{ fontSize: 12, padding: '6px 8px' }}
-                              value={milestone.notes}
-                              onChange={e => updateInterval(milestone.id, 'notes', e.target.value)}
-                              placeholder="Instructions / remarks (optional)"
-                            />
-                          </div>
-                          <div style={{ textAlign: 'center' }}>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-icon btn-sm"
-                              style={{ color: 'var(--color-danger)' }}
-                              onClick={() => removeInterval(milestone.id)}
-                              title="Remove Milestone"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {!vehicleId && (
-                    <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-danger)', fontSize: 12 }}>
-                      <AlertCircle size={14} />
-                      <span>Please select a vehicle registration above so these reminders can be attached to the vehicle.</span>
-                    </div>
-                  )}
                 </div>
-              )}
+
+                {/* Quick Add Custom Random Interval Chips */}
+                <div style={{
+                  background: 'var(--bg)',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  border: '1px dashed var(--border)',
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 10
+                }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                    + Add Flexible Interval:
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={() => addCustomInterval('3 Weeks', 21)}
+                    >
+                      + 3 Weeks
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={() => addCustomInterval('6 Weeks', 42)}
+                    >
+                      + 6 Weeks
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={() => addCustomInterval('3 Months', undefined, 3)}
+                    >
+                      + 3 Months
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={() => addCustomInterval('6 Months', undefined, 6)}
+                    >
+                      + 6 Months
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                      onClick={() => addCustomInterval('1 Year', undefined, 12)}
+                    >
+                      + 1 Year
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      style={{ background: 'var(--surface)', border: '1px solid var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
+                      onClick={() => addCustomInterval('Custom Checkup', 30)}
+                    >
+                      + Custom Date
+                    </button>
+                  </div>
+                </div>
+
+                {/* Milestone Interval Rows */}
+                {scheduleIntervals.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px 16px', background: 'var(--bg)', borderRadius: 8, border: '1px solid var(--border)', color: 'var(--text-muted)', fontSize: 13 }}>
+                    <div style={{ marginBottom: 6, fontWeight: 600, color: 'var(--text)' }}>No periodic maintenance milestones added yet.</div>
+                    Click <strong>⚡ Auto-Fill 3W + 6M + 1Y</strong> or any of the interval buttons above to add checkups for this vehicle.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '130px 145px 1fr 1fr 36px', gap: 10, fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0 8px' }}>
+                      <div>Milestone Label</div>
+                      <div>Target Due Date</div>
+                      <div>Task / Service Description</div>
+                      <div>Special Notes</div>
+                      <div></div>
+                    </div>
+
+                    {scheduleIntervals.map((milestone) => (
+                      <div
+                        key={milestone.id}
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '130px 145px 1fr 1fr 36px',
+                          gap: 10,
+                          alignItems: 'center',
+                          background: 'var(--surface)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 8,
+                          padding: '8px 10px',
+                        }}
+                      >
+                        <div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ fontSize: 12, padding: '6px 8px' }}
+                            value={milestone.intervalLabel}
+                            onChange={e => updateInterval(milestone.id, 'intervalLabel', e.target.value)}
+                            placeholder="e.g. 3 Weeks"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="date"
+                            className="form-input"
+                            style={{ fontSize: 12, padding: '6px 8px' }}
+                            value={milestone.reminderDate}
+                            onChange={e => updateInterval(milestone.id, 'reminderDate', e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ fontSize: 12, padding: '6px 8px' }}
+                            value={milestone.serviceName}
+                            onChange={e => updateInterval(milestone.id, 'serviceName', e.target.value)}
+                            placeholder="Service or task name"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            style={{ fontSize: 12, padding: '6px 8px' }}
+                            value={milestone.notes}
+                            onChange={e => updateInterval(milestone.id, 'notes', e.target.value)}
+                            placeholder="Instructions / remarks (optional)"
+                          />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-icon btn-sm"
+                            style={{ color: 'var(--color-danger)' }}
+                            onClick={() => removeInterval(milestone.id)}
+                            title="Remove Milestone"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {scheduleIntervals.length > 0 && !vehicleId && (
+                  <div style={{ marginTop: 12, padding: '8px 12px', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--color-danger)', fontSize: 12 }}>
+                    <AlertCircle size={14} />
+                    <span>Please select a vehicle registration above so these reminders can be attached to the vehicle.</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="divider" style={{ margin: 0 }} />

@@ -177,7 +177,7 @@ export const getInvoiceById = async (req: Request, res: Response) => {
 
 export const createInvoiceFromJobCard = async (req: Request, res: Response) => {
   try {
-    const { jobCardId } = req.body;
+    const { jobCardId, maintenanceSchedule } = req.body;
     
     // Fetch Job Card with its services and materials
     const jobCard = await prisma.jobCard.findUnique({
@@ -256,6 +256,24 @@ export const createInvoiceFromJobCard = async (req: Request, res: Response) => {
           balance: runningBalance
         }
       });
+
+      // 3. Automatically create Maintenance Reminders if scheduled
+      if (maintenanceSchedule && maintenanceSchedule.intervals?.length > 0 && jobCard.vehicleId) {
+        for (const item of maintenanceSchedule.intervals) {
+          await tx.maintenanceReminder.create({
+            data: {
+              jobCardId: jobCard.id,
+              customerId: jobCard.customerId,
+              vehicleId: jobCard.vehicleId,
+              serviceName: item.serviceName || maintenanceSchedule.serviceName || jobCard.services[0]?.service?.name || 'Periodic Maintenance',
+              reminderDate: new Date(item.reminderDate),
+              intervalLabel: item.intervalLabel || 'Scheduled Checkup',
+              status: 'PENDING',
+              notes: item.notes || `Scheduled upon Invoicing Job Card ${jobCard.jobNumber} (Invoice ${invoiceNumber})`
+            }
+          });
+        }
+      }
 
       return inv;
     });
