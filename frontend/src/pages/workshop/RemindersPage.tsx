@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Calendar, Phone, MessageSquare, Clock, AlertTriangle, CheckCircle2,
-  Plus, Search, Filter, Trash2, User, Car, X, ShieldAlert,
-  ChevronRight, ArrowRight, Check, History, PhoneCall, Send
+  Plus, Search, Filter, Trash2, User, Car, X, ShieldAlert, Shield,
+  ChevronRight, ArrowRight, Check, History, PhoneCall, Send, Sparkles
 } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -30,8 +31,70 @@ const formatDate = (d?: string | null) => {
   }
 }
 
+const getMilestonePreview = (preset: string, baseDateStr: string, serviceName: string) => {
+  const base = new Date(baseDateStr || new Date())
+  if (isNaN(base.getTime())) return []
+
+  const presetsMap: Record<string, { days?: number; months?: number; label: string; desc: string }[]> = {
+    COATING_1YR: [
+      { days: 21, label: '3 Weeks', desc: '3-Week Initial Inspection & Wash' },
+      { months: 6, label: '6 Months', desc: '6-Month Booster & Decon Wash' },
+      { months: 12, label: '1 Year', desc: '1-Year Annual Inspection & Warranty Validation' },
+    ],
+    COATING_2YR: [
+      { days: 21, label: '3 Weeks', desc: '3-Week Initial Inspection & Wash' },
+      { months: 6, label: '6 Months', desc: '6-Month Booster & Decon Wash' },
+      { months: 12, label: '1 Year', desc: '1-Year Annual Inspection & Re-boost' },
+      { months: 18, label: '18 Months', desc: '18-Month Maintenance Inspection' },
+      { months: 24, label: '2 Years', desc: '2-Year Warranty Inspection & Final Top-up' },
+    ],
+    COATING_3YR: [
+      { days: 21, label: '3 Weeks', desc: '3-Week Initial Inspection & Wash' },
+      { months: 6, label: '6 Months', desc: '6-Month Booster & Decon Wash' },
+      { months: 12, label: '1 Year', desc: '1-Year Annual Inspection & Re-boost' },
+      { months: 18, label: '18 Months', desc: '18-Month Maintenance Inspection' },
+      { months: 24, label: '2 Years', desc: '2-Year Annual Re-boost' },
+      { months: 30, label: '30 Months', desc: '30-Month Maintenance Inspection' },
+      { months: 36, label: '3 Years', desc: '3-Year Warranty Inspection & Final Top-up' },
+    ],
+    COATING_5YR: [
+      { days: 21, label: '3 Weeks', desc: '3-Week Initial Inspection & Wash' },
+      { months: 6, label: '6 Months', desc: '6-Month Booster & Decon Wash' },
+      { months: 12, label: '1 Year', desc: '1-Year Annual Inspection & Re-boost' },
+      { months: 18, label: '18 Months', desc: '18-Month Maintenance Inspection' },
+      { months: 24, label: '2 Years', desc: '2-Year Annual Re-boost' },
+      { months: 30, label: '30 Months', desc: '30-Month Maintenance Inspection' },
+      { months: 36, label: '3 Years', desc: '3-Year Annual Re-boost' },
+      { months: 42, label: '42 Months', desc: '42-Month Maintenance Inspection' },
+      { months: 48, label: '4 Years', desc: '4-Year Annual Re-boost' },
+      { months: 54, label: '54 Months', desc: '54-Month Maintenance Inspection' },
+      { months: 60, label: '5 Years', desc: '5-Year Final Warranty Inspection' },
+    ],
+    GENERAL_MAINTENANCE: [
+      { months: 3, label: '3 Months', desc: '3-Month Fluid & Filter Check' },
+      { months: 6, label: '6 Months', desc: '6-Month General Maintenance Service' },
+    ],
+    SINGLE: [
+      { days: 30, label: '1 Month', desc: 'One-Time Follow-up' },
+    ],
+  }
+
+  const items = presetsMap[preset] || []
+  return items.map(item => {
+    const d = new Date(base)
+    if (item.days) d.setDate(d.getDate() + item.days)
+    else if (item.months) d.setMonth(d.getMonth() + item.months)
+    return {
+      label: item.label,
+      date: format(d, 'MMM dd, yyyy'),
+      desc: `${serviceName} - ${item.desc}`,
+    }
+  })
+}
+
 export default function RemindersPage() {
   const queryClient = useQueryClient()
+  const [searchParams] = useSearchParams()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('ALL')
   const [timeframeFilter, setTimeframeFilter] = useState<string>('ALL')
@@ -49,12 +112,32 @@ export default function RemindersPage() {
   const [fNotes, setFNotes] = useState<string>('')
 
   // New Reminder form
+  const [newJobCardId, setNewJobCardId] = useState<number | null>(null)
   const [newCustomerId, setNewCustomerId] = useState<number>(0)
   const [newVehicleId, setNewVehicleId] = useState<number>(0)
-  const [newServiceName, setNewServiceName] = useState('Ceramic Coating 9H Maintenance')
-  const [newPreset, setNewPreset] = useState<'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'SINGLE'>('COATING_5YR')
+  const [newServiceName, setNewServiceName] = useState('Ceramic Coating 9H Warranty')
+  const [newPreset, setNewPreset] = useState<'COATING_1YR' | 'COATING_2YR' | 'COATING_3YR' | 'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'SINGLE'>('COATING_1YR')
   const [newStartDate, setNewStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [newNotes, setNewNotes] = useState('')
+
+  // Handle URL search params (e.g. from Job Card "Set Warranty Reminders")
+  useEffect(() => {
+    const action = searchParams.get('action')
+    const cid = searchParams.get('customerId')
+    const vid = searchParams.get('vehicleId')
+    const sName = searchParams.get('serviceName')
+    const jid = searchParams.get('jobCardId')
+    const sDate = searchParams.get('startDate')
+
+    if (action === 'new' || cid || vid) {
+      if (cid) setNewCustomerId(Number(cid))
+      if (vid) setNewVehicleId(Number(vid))
+      if (sName) setNewServiceName(sName)
+      if (jid) setNewJobCardId(Number(jid))
+      if (sDate) setNewStartDate(sDate)
+      setIsCreateModalOpen(true)
+    }
+  }, [searchParams])
 
   const { data: reminders = [], isLoading } = useQuery({
     queryKey: ['reminders'],
@@ -148,6 +231,7 @@ export default function RemindersPage() {
     }
 
     createMut.mutate({
+      jobCardId: newJobCardId,
       customerId: newCustomerId,
       vehicleId: newVehicleId,
       serviceName: newServiceName,
@@ -366,7 +450,7 @@ export default function RemindersPage() {
                   const cleanPhone = rawMobile.replace(/[^0-9]/g, '')
                   const waNumber = cleanPhone.startsWith('0') ? '94' + cleanPhone.slice(1) : cleanPhone
                   const waMessage = encodeURIComponent(
-                    `Hello ${r.customer?.name || 'Customer'},\nThis is Golden Auto Detail regarding your vehicle (${r.vehicle?.registration}). Your ${r.intervalLabel} maintenance checkup (${r.serviceName}) is due. Would you like to schedule an appointment this week?`
+                    `Hello ${r.customer?.name || 'Customer'},\nThis is Golden Auto Detail regarding your vehicle (${r.vehicle?.registration}).\n\nYour ${r.intervalLabel} periodic maintenance checkup (${r.serviceName}) is due on ${formatDate(r.reminderDate)}.\n\nRegular scheduled checkups ensure your coating warranty remains fully active and preserve maximum gloss.\n\nWould you like us to schedule an appointment for you this week?`
                   )
 
                   return (
@@ -685,7 +769,14 @@ export default function RemindersPage() {
 
                 {/* Service Name */}
                 <div className="form-group">
-                  <label className="form-label required">Primary Service Name</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label required">Primary Service Name</label>
+                    {newJobCardId && (
+                      <span className="badge badge-gold" style={{ fontSize: 10 }}>
+                        Linked to Job Card #{newJobCardId}
+                      </span>
+                    )}
+                  </div>
                   <input
                     type="text"
                     className="form-input"
@@ -697,18 +788,24 @@ export default function RemindersPage() {
 
                 {/* Schedule Preset */}
                 <div className="form-group">
-                  <label className="form-label required">Periodic Schedule Preset</label>
+                  <label className="form-label required">Periodic Warranty / Maintenance Schedule</label>
                   <select
                     className="form-select"
                     value={newPreset}
                     onChange={e => setNewPreset(e.target.value as any)}
                   >
-                    <option value="COATING_5YR">5-Year Ceramic Coating / PPF (2 Wks, 3 Mo, then every 6 Mo up to 5 Yrs)</option>
-                    <option value="GENERAL_MAINTENANCE">General Maintenance (3 Months, 6 Months)</option>
-                    <option value="SINGLE">Single One-Time Reminder</option>
+                    <option value="COATING_1YR">🛡️ 1-Year Coating Warranty (3 Weeks, 6 Months, 1 Year)</option>
+                    <option value="COATING_2YR">🛡️ 2-Year Coating Warranty (3 Weeks, 6 Months, 1 Yr, 18 Mo, 2 Yrs)</option>
+                    <option value="COATING_3YR">🛡️ 3-Year Coating Warranty (3 Weeks, 6 Months, 1 Yr, 18 Mo, 2 Yrs, 30 Mo, 3 Yrs)</option>
+                    <option value="COATING_5YR">🛡️ 5-Year Coating Warranty (3 Weeks, 6 Months, then every 6 Months up to 5 Yrs)</option>
+                    <option value="GENERAL_MAINTENANCE">🚗 General Periodic Maintenance (3 Months, 6 Months)</option>
+                    <option value="SINGLE">🎯 Single One-Time Reminder</option>
                   </select>
                   <span className="form-hint" style={{ color: 'var(--color-gold-primary)' }}>
-                    {newPreset === 'COATING_5YR' && '✨ Creates 12 periodic milestones: 2 weeks checkup, 3 months, and every 6 months up to 5 years!'}
+                    {newPreset === 'COATING_1YR' && '✨ Creates 3 milestones: 3-Week Initial Inspection, 6-Month Booster Wash, and 1-Year Annual Inspection.'}
+                    {newPreset === 'COATING_2YR' && '✨ Creates 5 milestones: 3 Weeks, 6 Months, 1 Year, 18 Months, and 2 Years.'}
+                    {newPreset === 'COATING_3YR' && '✨ Creates 7 milestones covering up to 3 Years.'}
+                    {newPreset === 'COATING_5YR' && '✨ Creates 11 milestones covering the full 5-Year Warranty period.'}
                     {newPreset === 'GENERAL_MAINTENANCE' && '✨ Creates 3-month and 6-month checkup reminders.'}
                     {newPreset === 'SINGLE' && 'Creates a single target reminder.'}
                   </span>
@@ -727,13 +824,42 @@ export default function RemindersPage() {
                   <span className="form-hint">All milestone intervals are calculated starting from this date</span>
                 </div>
 
+                {/* Live Milestone Schedule Preview */}
+                {(() => {
+                  const milestones = getMilestonePreview(newPreset, newStartDate, newServiceName)
+                  if (!milestones.length) return null
+                  return (
+                    <div style={{
+                      background: 'var(--hover)',
+                      borderRadius: 8,
+                      padding: '12px 14px',
+                      border: '1px solid var(--border)',
+                    }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-gold-primary)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <Sparkles size={14} /> Schedule Preview ({milestones.length} Periodic Milestones):
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {milestones.map((m, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, gap: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                              <span className="badge badge-gold" style={{ fontSize: 10, padding: '2px 6px', flexShrink: 0 }}>{m.label}</span>
+                              <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.desc}</span>
+                            </div>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--text-subtle)', flexShrink: 0 }}>{m.date}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })()}
+
                 {/* Notes */}
                 <div className="form-group">
                   <label className="form-label">Internal Notes / Warranty Details</label>
                   <textarea
                     className="form-input"
                     rows={2}
-                    placeholder="e.g. 9H 5-Year Ceramic Coating applied with 5-year warranty card"
+                    placeholder="e.g. 9H Ceramic Coating applied with Warranty Card #WC-8891"
                     value={newNotes}
                     onChange={e => setNewNotes(e.target.value)}
                   />

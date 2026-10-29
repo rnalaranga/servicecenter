@@ -44,7 +44,7 @@ export interface CreateReminderPayload {
   customerId: number;
   vehicleId: number;
   serviceName: string;
-  preset: 'SINGLE' | 'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'CUSTOM';
+  preset: 'SINGLE' | 'COATING_1YR' | 'COATING_2YR' | 'COATING_3YR' | 'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'CUSTOM';
   startDate?: string;
   reminderDate?: string;
   intervalLabel?: string;
@@ -70,6 +70,7 @@ export const getReminders = async (params?: {
   search?: string;
   customerId?: number;
   vehicleId?: number;
+  jobCardId?: number;
 }): Promise<MaintenanceReminder[]> => {
   const { data } = await api.get('/reminders', { params });
   return data;

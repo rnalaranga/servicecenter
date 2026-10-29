@@ -4,11 +4,12 @@ import { z } from 'zod';
 
 export const getReminders = async (req: Request, res: Response) => {
   try {
-    const { status, timeframe, search, customerId, vehicleId } = req.query;
+    const { status, timeframe, search, customerId, vehicleId, jobCardId } = req.query;
     const where: any = {};
 
     if (customerId) where.customerId = Number(customerId);
     if (vehicleId) where.vehicleId = Number(vehicleId);
+    if (jobCardId) where.jobCardId = Number(jobCardId);
 
     const now = new Date();
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -104,7 +105,15 @@ const createReminderSchema = z.object({
   customerId: z.number().int(),
   vehicleId: z.number().int(),
   serviceName: z.string().min(1, 'Service name is required'),
-  preset: z.enum(['SINGLE', 'COATING_5YR', 'GENERAL_MAINTENANCE', 'CUSTOM']).default('SINGLE'),
+  preset: z.enum([
+    'SINGLE',
+    'COATING_1YR',
+    'COATING_2YR',
+    'COATING_3YR',
+    'COATING_5YR',
+    'GENERAL_MAINTENANCE',
+    'CUSTOM'
+  ]).default('COATING_1YR'),
   startDate: z.string().or(z.date()).optional(),
   reminderDate: z.string().or(z.date()).optional(),
   intervalLabel: z.string().optional(),
@@ -121,12 +130,30 @@ export const createReminderSchedule = async (req: Request, res: Response) => {
     const data = createReminderSchema.parse(req.body);
     const baseDate = data.startDate ? new Date(data.startDate) : new Date();
 
-    if (data.preset === 'COATING_5YR') {
-      // 5-Year Periodic Schedule for Ceramic Coating / PPF
-      // 2 weeks, 3 months, then every 6 months up to 5 years (60 months)
-      const scheduleItems: { days?: number; months?: number; label: string; desc: string }[] = [
-        { days: 14, label: '2 Weeks', desc: `${data.serviceName} - 2-Week Initial Checkup & Wash` },
-        { months: 3, label: '3 Months', desc: `${data.serviceName} - 3-Month Maintenance Inspection` },
+    const presetsMap: Record<string, { days?: number; months?: number; label: string; desc: string }[]> = {
+      COATING_1YR: [
+        { days: 21, label: '3 Weeks', desc: `${data.serviceName} - 3-Week Initial Inspection & Wash` },
+        { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month Booster & Decon Wash` },
+        { months: 12, label: '1 Year', desc: `${data.serviceName} - 1-Year Annual Inspection & Warranty Validation` },
+      ],
+      COATING_2YR: [
+        { days: 21, label: '3 Weeks', desc: `${data.serviceName} - 3-Week Initial Inspection & Wash` },
+        { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month Booster & Decon Wash` },
+        { months: 12, label: '1 Year', desc: `${data.serviceName} - 1-Year Annual Inspection & Re-boost` },
+        { months: 18, label: '18 Months', desc: `${data.serviceName} - 18-Month Maintenance Inspection` },
+        { months: 24, label: '2 Years', desc: `${data.serviceName} - 2-Year Warranty Inspection & Final Top-up` },
+      ],
+      COATING_3YR: [
+        { days: 21, label: '3 Weeks', desc: `${data.serviceName} - 3-Week Initial Inspection & Wash` },
+        { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month Booster & Decon Wash` },
+        { months: 12, label: '1 Year', desc: `${data.serviceName} - 1-Year Annual Inspection & Re-boost` },
+        { months: 18, label: '18 Months', desc: `${data.serviceName} - 18-Month Maintenance Inspection` },
+        { months: 24, label: '2 Years', desc: `${data.serviceName} - 2-Year Annual Re-boost` },
+        { months: 30, label: '30 Months', desc: `${data.serviceName} - 30-Month Maintenance Inspection` },
+        { months: 36, label: '3 Years', desc: `${data.serviceName} - 3-Year Warranty Inspection & Final Top-up` },
+      ],
+      COATING_5YR: [
+        { days: 21, label: '3 Weeks', desc: `${data.serviceName} - 3-Week Initial Inspection & Wash` },
         { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month Booster & Decon Wash` },
         { months: 12, label: '1 Year', desc: `${data.serviceName} - 1-Year Annual Inspection & Re-boost` },
         { months: 18, label: '18 Months', desc: `${data.serviceName} - 18-Month Maintenance Inspection` },
@@ -137,8 +164,15 @@ export const createReminderSchedule = async (req: Request, res: Response) => {
         { months: 48, label: '4 Years', desc: `${data.serviceName} - 4-Year Annual Re-boost` },
         { months: 54, label: '54 Months', desc: `${data.serviceName} - 54-Month Maintenance Inspection` },
         { months: 60, label: '5 Years', desc: `${data.serviceName} - 5-Year Final Warranty Inspection` },
-      ];
+      ],
+      GENERAL_MAINTENANCE: [
+        { months: 3, label: '3 Months', desc: `${data.serviceName} - 3-Month Fluid & Filter Check` },
+        { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month General Maintenance Service` },
+      ],
+    };
 
+    if (presetsMap[data.preset]) {
+      const scheduleItems = presetsMap[data.preset];
       const created = [];
       for (const item of scheduleItems) {
         const targetDate = new Date(baseDate);
@@ -164,35 +198,6 @@ export const createReminderSchedule = async (req: Request, res: Response) => {
       }
 
       return res.status(201).json({ message: `Created ${created.length} periodic maintenance reminders`, reminders: created });
-    }
-
-    if (data.preset === 'GENERAL_MAINTENANCE') {
-      const scheduleItems = [
-        { months: 3, label: '3 Months', desc: `${data.serviceName} - 3-Month Fluid & Filter Check` },
-        { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month General Maintenance Service` },
-      ];
-
-      const created = [];
-      for (const item of scheduleItems) {
-        const targetDate = new Date(baseDate);
-        targetDate.setMonth(targetDate.getMonth() + item.months);
-
-        const r = await prisma.maintenanceReminder.create({
-          data: {
-            jobCardId: data.jobCardId,
-            customerId: data.customerId,
-            vehicleId: data.vehicleId,
-            serviceName: item.desc,
-            reminderDate: targetDate,
-            intervalLabel: item.label,
-            status: 'PENDING',
-            notes: data.notes
-          }
-        });
-        created.push(r);
-      }
-
-      return res.status(201).json({ message: `Created ${created.length} maintenance reminders`, reminders: created });
     }
 
     if (data.preset === 'CUSTOM' && data.customIntervals && data.customIntervals.length > 0) {

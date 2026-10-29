@@ -6,6 +6,7 @@ import { getJobCardById, updateJobCard, addServiceToJobCard, removeServiceFromJo
 import { getVendors } from '@/api/vendors'
 import { createPurchase } from '@/api/purchases'
 import { generateInvoiceFromJobCard } from '@/api/invoices'
+import { getReminders, type MaintenanceReminder } from '@/api/reminders'
 import { useToast } from '@/contexts/ToastContext'
 import { useAuth } from '@/contexts/AuthContext'
 import { format, parseISO } from 'date-fns'
@@ -46,6 +47,12 @@ export default function JobCardProfilePage() {
   const { data: allVendors = [] } = useQuery({
     queryKey: ['vendors'],
     queryFn: getVendors
+  })
+
+  const { data: jobReminders = [] } = useQuery<MaintenanceReminder[]>({
+    queryKey: ['reminders', { jobCardId: Number(id) }],
+    queryFn: () => getReminders({ jobCardId: Number(id) }),
+    enabled: !!id,
   })
 
   const updateMut = useMutation({
@@ -186,10 +193,14 @@ export default function JobCardProfilePage() {
 
         <button
           className="btn btn-outline btn-sm"
-          onClick={() => navigate('/reminders')}
+          onClick={() => {
+            const sName = job.services?.[0]?.service?.name || 'Ceramic Coating Warranty Maintenance'
+            const sDate = job.date ? format(parseISO(job.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+            navigate(`/reminders?action=new&jobCardId=${job.id}&customerId=${job.customerId}&vehicleId=${job.vehicleId}&serviceName=${encodeURIComponent(sName)}&startDate=${sDate}`)
+          }}
           style={{ gap: 6, borderColor: 'var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
         >
-          <Bell size={13} /> Maintenance Reminders
+          <Bell size={13} /> {jobReminders.length > 0 ? `Warranty Reminders (${jobReminders.length})` : 'Set Warranty Reminders'}
         </button>
 
         <button className="btn btn-secondary btn-sm" onClick={() => navigate(`/job-cards/${job.id}/edit`)}>
@@ -489,6 +500,76 @@ export default function JobCardProfilePage() {
               </div>
             ) : (
               <span className="neutral">No customer</span>
+            )}
+          </div>
+
+          {/* Warranty & Periodic Maintenance Reminders */}
+          <div className="card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Bell size={15} style={{ color: 'var(--color-gold-primary)' }} /> Warranty Reminders
+              </h3>
+              {jobReminders.length > 0 && (
+                <span className="badge badge-gold" style={{ fontSize: 11 }}>
+                  {jobReminders.length} Scheduled
+                </span>
+              )}
+            </div>
+
+            {jobReminders.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {jobReminders.map(r => (
+                  <div
+                    key={r.id}
+                    style={{
+                      padding: '8px 10px',
+                      background: 'var(--hover)',
+                      borderRadius: 6,
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span className="badge badge-outline" style={{ fontSize: 10, fontWeight: 700 }}>{r.intervalLabel}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                          {format(new Date(r.reminderDate), 'MMM dd, yyyy')}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{r.serviceName}</div>
+                    </div>
+                    <span className={`badge ${r.status === 'COMPLETED' ? 'badge-completed' : r.status === 'SCHEDULED' ? 'badge-progress' : 'badge-open'}`} style={{ fontSize: 10 }}>
+                      {r.status}
+                    </span>
+                  </div>
+                ))}
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => navigate('/reminders')}
+                  style={{ marginTop: 6, width: '100%', justifyContent: 'center' }}
+                >
+                  Manage in Reminders Center
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
+                  No warranty reminder milestones generated for this vehicle yet. Set up 3-week, 6-month, and annual checkups.
+                </p>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ width: '100%', justifyContent: 'center', gap: 6 }}
+                  onClick={() => {
+                    const sName = job.services?.[0]?.service?.name || 'Ceramic Coating Warranty Maintenance'
+                    const sDate = job.date ? format(parseISO(job.date), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')
+                    navigate(`/reminders?action=new&jobCardId=${job.id}&customerId=${job.customerId}&vehicleId=${job.vehicleId}&serviceName=${encodeURIComponent(sName)}&startDate=${sDate}`)
+                  }}
+                >
+                  <Bell size={13} /> Set Coating Warranty Schedule
+                </button>
+              </div>
             )}
           </div>
 

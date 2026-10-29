@@ -500,6 +500,13 @@ export default function InvoiceFormPage() {
                           <div 
                             key={c.id}
                             style={{ padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setCustomerId(String(c.id));
+                              setCustomerSearch(`${c.name} (${c.mobile})`);
+                              setShowCustDropdown(false);
+                              if (errors.customerId) setErrors(e => { const n={...e}; delete n.customerId; return n });
+                            }}
                             onClick={() => {
                               setCustomerId(String(c.id))
                               setCustomerSearch(`${c.name} (${c.mobile})`)
@@ -520,6 +527,12 @@ export default function InvoiceFormPage() {
                         {/* Quick Add Button inside Dropdown */}
                         <div 
                           style={{ padding: '12px 14px', cursor: 'pointer', background: 'var(--hover)', color: 'var(--color-gold-primary)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setQuickAdd(p => ({ ...p, name: customerSearch }));
+                            setShowQuickAdd(true);
+                            setShowCustDropdown(false);
+                          }}
                           onClick={() => {
                             setQuickAdd(p => ({ ...p, name: customerSearch }))
                             setShowQuickAdd(true)
