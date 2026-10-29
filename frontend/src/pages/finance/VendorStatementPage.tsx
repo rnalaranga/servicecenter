@@ -41,7 +41,7 @@ export default function VendorStatementPage() {
           <div>
             <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text)' }}>VENDOR STATEMENT</h1>
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-              {settings?.companyName || 'Golden Auto Detail'}<br />
+              {settings?.companyName || 'AUTO ELEVATE'}<br />
               {settings?.companyAddress || '123 Main Street, Colombo 03'}<br />
               Tel: {settings?.companyPhone || '+94 11 234 5678'}
             </div>

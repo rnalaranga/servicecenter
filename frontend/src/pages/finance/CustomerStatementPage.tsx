@@ -46,7 +46,7 @@ export default function CustomerStatementPage() {
           <div>
             <h1 style={{ fontSize: 32, fontWeight: 800, margin: '0 0 8px 0', color: 'var(--text)' }}>CUSTOMER STATEMENT</h1>
             <div style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-              {settings?.companyName || 'Golden Auto Detail'}<br />
+              {settings?.companyName || 'AUTO ELEVATE'}<br />
               {settings?.companyAddress || '123 Main Street, Colombo 03'}<br />
               Tel: {settings?.companyPhone || '+94 11 234 5678'}
             </div>
@@ -133,7 +133,7 @@ export default function CustomerStatementPage() {
         {currentBalance > 0 && (
           <div style={{ marginTop: 40, padding: 16, border: '1px solid var(--border)', borderRadius: 8, background: '#fafafa', textAlign: 'center' }}>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 8 }}>Please remit payment for the outstanding balance to:</div>
-            <div style={{ fontWeight: 600 }}>{settings?.companyName || 'Golden Auto Detail'} - A/C 123456789 - Bank Name</div>
+            <div style={{ fontWeight: 600 }}>{settings?.companyName || 'AUTO ELEVATE'} - A/C 123456789 - Bank Name</div>
           </div>
         )}
       </div>

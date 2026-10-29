@@ -13,7 +13,7 @@ export default function SettingsPage() {
   const [dbSyncResult, setDbSyncResult] = useState<{ success: boolean; message: string; output?: string } | null>(null)
   
   const [formData, setFormData] = useState<Record<string, string>>({
-    companyName: 'Auto Elevate - Golden Auto Detail',
+    companyName: 'AUTO ELEVATE ERP',
     companyPhone: '',
     companyEmail: '',
     companyAddress: '',

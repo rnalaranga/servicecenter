@@ -1,4 +1,4 @@
-// Golden Auto Detail ERP - Prisma Schema
+// AUTO ELEVATE ERP - Prisma Schema
 // Database: MySQL
 
 generator client {

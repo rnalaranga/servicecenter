@@ -283,6 +283,15 @@ const directInvoiceSchema = z.object({
     unitPrice: z.number().min(0, 'Price must be >= 0'),
     discount: z.number().optional().default(0),
   })).min(1, 'At least one item is required'),
+  maintenanceSchedule: z.object({
+    serviceName: z.string().optional(),
+    intervals: z.array(z.object({
+      intervalLabel: z.string().min(1, 'Interval label is required'),
+      reminderDate: z.string().or(z.date()),
+      serviceName: z.string().optional(),
+      notes: z.string().optional().nullable(),
+    })).min(1, 'At least one interval is required')
+  }).optional().nullable(),
 });
 
 export const createDirectInvoice = async (req: Request, res: Response) => {
@@ -408,6 +417,31 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
 
         // 4. Automatically deduct stock for sold products
         await deductStockForInvoice(tx, invoiceItems, invoiceNumber);
+      }
+
+      // 5. Automatically create Periodic Maintenance Reminders if configured
+      if (data.maintenanceSchedule && data.maintenanceSchedule.intervals?.length > 0) {
+        let targetVehId = data.vehicleId;
+        if (!targetVehId) {
+          const firstVeh = await tx.vehicle.findFirst({ where: { customerId: data.customerId } });
+          if (firstVeh) targetVehId = firstVeh.id;
+        }
+
+        if (targetVehId) {
+          for (const item of data.maintenanceSchedule.intervals) {
+            await tx.maintenanceReminder.create({
+              data: {
+                customerId: data.customerId,
+                vehicleId: targetVehId,
+                serviceName: item.serviceName || data.maintenanceSchedule.serviceName || invoiceItems[0]?.description || 'Periodic Maintenance',
+                reminderDate: new Date(item.reminderDate),
+                intervalLabel: item.intervalLabel || 'Scheduled Checkup',
+                status: 'PENDING',
+                notes: item.notes || `Scheduled upon Invoice ${invoiceNumber}`
+              }
+            });
+          }
+        }
       }
 
       return inv;

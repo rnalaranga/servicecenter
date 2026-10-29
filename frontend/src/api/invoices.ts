@@ -61,6 +61,16 @@ export const generateInvoiceFromJobCard = async (jobCardId: string): Promise<Inv
   return data;
 };
 
+export interface MaintenanceSchedulePayload {
+  serviceName?: string;
+  intervals: {
+    intervalLabel: string;
+    reminderDate: string;
+    serviceName?: string;
+    notes?: string | null;
+  }[];
+}
+
 export const createDirectInvoice = async (payload: { 
   customerId: number;
   vehicleId?: number | null;
@@ -72,6 +82,7 @@ export const createDirectInvoice = async (payload: {
   paymentAmount?: number;
   paymentMethod?: string;
   items: { description: string; quantity: number; unitPrice: number; discount?: number }[];
+  maintenanceSchedule?: MaintenanceSchedulePayload | null;
 }): Promise<Invoice> => {
   const { data } = await api.post('/invoices', payload);
   return data;

@@ -90,7 +90,7 @@ export default function LoginPage() {
             letterSpacing: '-0.02em',
             marginBottom: '4px',
           }}>
-            Golden Auto Detail ERP
+            AUTO ELEVATE ERP
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
             Sign in to your workspace
@@ -188,7 +188,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-secondary btn-sm"
               disabled={loading}
-              onClick={() => handleQuickLogin('admin', 'admin@golden123')}
+              onClick={() => handleQuickLogin('admin', 'admin@autoelevate123')}
               style={{ fontSize: '12px', padding: '8px 10px', justifyContent: 'center' }}
             >
               👑 Admin
@@ -197,7 +197,7 @@ export default function LoginPage() {
               type="button"
               className="btn btn-primary btn-sm"
               disabled={loading}
-              onClick={() => handleQuickLogin('advisor', 'advisor@golden123')}
+              onClick={() => handleQuickLogin('advisor', 'advisor@autoelevate123')}
               style={{ fontSize: '12px', padding: '8px 10px', justifyContent: 'center' }}
             >
               📋 Advisor (No Price)
@@ -209,7 +209,7 @@ export default function LoginPage() {
         </div>
 
         <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '11px', color: 'var(--text-subtle)' }}>
-          © 2025 {settings?.companyName || 'Golden Auto Detail ERP'} · All rights reserved
+          © 2025 {settings?.companyName || 'AUTO ELEVATE ERP'} · All rights reserved
         </p>
       </div>
     </div>

@@ -249,17 +249,47 @@ export const updateReminder = async (req: Request, res: Response) => {
     const id = Number(req.params.id);
     const { status, scheduledDate, notes, reminderDate } = req.body;
 
-    const reminder = await prisma.maintenanceReminder.update({
-      where: { id },
-      data: {
-        status: status || undefined,
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : (scheduledDate === null ? null : undefined),
-        notes: notes !== undefined ? notes : undefined,
-        reminderDate: reminderDate ? new Date(reminderDate) : undefined,
+    const existing = await prisma.maintenanceReminder.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Reminder not found' });
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const reminder = await tx.maintenanceReminder.update({
+        where: { id },
+        data: {
+          status: status || undefined,
+          scheduledDate: scheduledDate ? new Date(scheduledDate) : (scheduledDate === null ? null : undefined),
+          notes: notes !== undefined ? notes : undefined,
+          reminderDate: reminderDate ? new Date(reminderDate) : undefined,
+        },
+        include: {
+          customer: true,
+          vehicle: true,
+          followups: { orderBy: { contactDate: 'desc' } }
+        }
+      });
+
+      // Record a followup history entry if notes or status changed
+      if (notes || status || scheduledDate) {
+        let respLabel = status || 'UPDATE';
+        if (status === 'COMPLETED') respLabel = 'COMPLETED';
+        else if (status === 'SCHEDULED' || scheduledDate) respLabel = 'RESCHEDULED';
+
+        await tx.reminderFollowup.create({
+          data: {
+            reminderId: id,
+            channel: 'PHONE',
+            contacted: true,
+            response: respLabel,
+            scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+            notes: notes || (status ? `Status updated to ${status}` : 'Reminder updated')
+          }
+        });
       }
+
+      return reminder;
     });
 
-    res.json(reminder);
+    res.json(updated);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to update reminder' });

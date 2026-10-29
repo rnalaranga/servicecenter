@@ -103,6 +103,14 @@ export default function RemindersPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [followupReminder, setFollowupReminder] = useState<MaintenanceReminder | null>(null)
   const [historyReminder, setHistoryReminder] = useState<MaintenanceReminder | null>(null)
+  
+  // Quick Action Modals (Done / Re-schedule)
+  const [completeModalReminder, setCompleteModalReminder] = useState<MaintenanceReminder | null>(null)
+  const [completeNotes, setCompleteNotes] = useState('')
+
+  const [rescheduleModalReminder, setRescheduleModalReminder] = useState<MaintenanceReminder | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState('')
+  const [rescheduleNotes, setRescheduleNotes] = useState('')
 
   // Follow-up form
   const [fChannel, setFChannel] = useState<'PHONE' | 'WHATSAPP' | 'SMS' | 'IN_PERSON'>('PHONE')
@@ -191,6 +199,61 @@ export default function RemindersPage() {
     }
   })
 
+  const updateMut = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: Partial<MaintenanceReminder> }) => updateReminder(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reminders'] })
+      setCompleteModalReminder(null)
+      setRescheduleModalReminder(null)
+      setCompleteNotes('')
+      setRescheduleDate('')
+      setRescheduleNotes('')
+    },
+    onError: (err: any) => {
+      alert(err.response?.data?.error || 'Failed to update reminder')
+    }
+  })
+
+  const handleOpenCompleteModal = (r: MaintenanceReminder) => {
+    setCompleteModalReminder(r)
+    setCompleteNotes('')
+  }
+
+  const handleConfirmComplete = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!completeModalReminder) return
+    updateMut.mutate({
+      id: completeModalReminder.id,
+      payload: {
+        status: 'COMPLETED',
+        notes: completeNotes.trim() || 'Maintenance service completed'
+      }
+    })
+  }
+
+  const handleOpenRescheduleModal = (r: MaintenanceReminder) => {
+    setRescheduleModalReminder(r)
+    const existingDate = r.scheduledDate 
+      ? format(new Date(r.scheduledDate), 'yyyy-MM-dd') 
+      : (r.reminderDate ? format(new Date(r.reminderDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'))
+    setRescheduleDate(existingDate)
+    setRescheduleNotes('')
+  }
+
+  const handleConfirmReschedule = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!rescheduleModalReminder) return
+    updateMut.mutate({
+      id: rescheduleModalReminder.id,
+      payload: {
+        status: 'SCHEDULED',
+        scheduledDate: rescheduleDate,
+        reminderDate: rescheduleDate,
+        notes: rescheduleNotes.trim() || 'Re-scheduled by customer request'
+      }
+    })
+  }
+
   const statusUpdateMut = useMutation({
     mutationFn: ({ id, status }: { id: number; status: ReminderStatus }) => updateReminder(id, { status }),
     onSuccess: () => {
@@ -251,6 +314,7 @@ export default function RemindersPage() {
   const overdueCount = reminders.filter(r => r.isOverdue).length
   const dueWeekCount = reminders.filter(r => r.isDueThisWeek && !r.isOverdue).length
   const scheduledCount = reminders.filter(r => r.status === 'SCHEDULED').length
+  const completedCount = reminders.filter(r => r.status === 'COMPLETED').length
   const totalActive = reminders.filter(r => r.status !== 'COMPLETED' && r.status !== 'CANCELLED').length
 
   const filteredReminders = reminders.filter(r => {
@@ -365,20 +429,41 @@ export default function RemindersPage() {
           onClick={() => { setTimeframeFilter('ALL'); setStatusFilter('ALL'); }}
           style={{
             padding: '16px 20px', cursor: 'pointer',
-            borderLeft: '4px solid var(--color-success)',
+            borderLeft: '4px solid var(--color-gold-primary)',
             background: timeframeFilter === 'ALL' && statusFilter === 'ALL' ? 'var(--hover)' : 'var(--surface)',
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-success)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-gold-primary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Active Schedules
             </span>
-            <CheckCircle2 size={18} color="var(--color-success)" />
+            <Clock size={18} color="var(--color-gold-primary)" />
           </div>
           <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', fontFamily: 'monospace' }}>
             {totalActive}
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Total trackable vehicle milestones</div>
+        </div>
+
+        <div
+          className="card"
+          onClick={() => { setTimeframeFilter('ALL'); setStatusFilter('COMPLETED'); }}
+          style={{
+            padding: '16px 20px', cursor: 'pointer',
+            borderLeft: '4px solid #10b981',
+            background: statusFilter === 'COMPLETED' ? 'var(--hover)' : 'var(--surface)',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Done / Completed
+            </span>
+            <CheckCircle2 size={18} color="#10b981" />
+          </div>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#10b981', fontFamily: 'monospace' }}>
+            {completedCount}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>Services finished & verified</div>
         </div>
       </div>
 
@@ -386,7 +471,7 @@ export default function RemindersPage() {
       <div className="card">
         <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            <div className="search-box" style={{ width: 300 }}>
+            <div className="search-box" style={{ width: 280 }}>
               <Search size={16} className="search-icon" />
               <input
                 type="text"
@@ -400,10 +485,10 @@ export default function RemindersPage() {
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {[
                 { val: 'ALL', label: 'All Reminders' },
-                { val: 'PENDING', label: 'Pending' },
-                { val: 'CONTACTED', label: 'Contacted' },
-                { val: 'SCHEDULED', label: 'Scheduled' },
-                { val: 'COMPLETED', label: 'Completed' },
+                { val: 'PENDING', label: '⏳ Pending' },
+                { val: 'SCHEDULED', label: '🗓 Re-scheduled' },
+                { val: 'COMPLETED', label: '✅ Done' },
+                { val: 'CONTACTED', label: '📞 Contacted' },
               ].map(tab => (
                 <button
                   key={tab.val}
@@ -439,9 +524,9 @@ export default function RemindersPage() {
                   <th>Customer & Contact</th>
                   <th>Vehicle</th>
                   <th>Maintenance Milestone</th>
-                  <th style={{ width: 120 }}>Status</th>
-                  <th>Latest Follow-up / Appointment</th>
-                  <th style={{ width: 160, textAlign: 'center' }}>Actions</th>
+                  <th style={{ width: 130 }}>Status</th>
+                  <th>Appointment & Follow-up Notes</th>
+                  <th style={{ width: 250, textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -450,7 +535,7 @@ export default function RemindersPage() {
                   const cleanPhone = rawMobile.replace(/[^0-9]/g, '')
                   const waNumber = cleanPhone.startsWith('0') ? '94' + cleanPhone.slice(1) : cleanPhone
                   const waMessage = encodeURIComponent(
-                    `Hello ${r.customer?.name || 'Customer'},\nThis is Golden Auto Detail regarding your vehicle (${r.vehicle?.registration}).\n\nYour ${r.intervalLabel} periodic maintenance checkup (${r.serviceName}) is due on ${formatDate(r.reminderDate)}.\n\nRegular scheduled checkups ensure your coating warranty remains fully active and preserve maximum gloss.\n\nWould you like us to schedule an appointment for you this week?`
+                    `Hello ${r.customer?.name || 'Customer'},\nThis is Auto Elevate regarding your vehicle (${r.vehicle?.registration}).\n\nYour ${r.intervalLabel} periodic maintenance checkup (${r.serviceName}) is due on ${formatDate(r.reminderDate)}.\n\nRegular scheduled checkups ensure your coating warranty remains fully active and preserve maximum gloss.\n\nWould you like us to schedule an appointment for you this week?`
                   )
 
                   return (
@@ -522,12 +607,15 @@ export default function RemindersPage() {
                           r.status === 'COMPLETED' ? 'badge-completed' :
                           r.status === 'CONTACTED' ? 'badge-gold' :
                           r.status === 'CANCELLED' ? 'badge-cancelled' : 'badge-draft'
-                        }`}>
-                          {r.status}
+                        }`} style={{ fontWeight: 700, fontSize: 11 }}>
+                          {r.status === 'COMPLETED' ? '✅ Done' :
+                           r.status === 'SCHEDULED' ? '🗓 Re-scheduled' :
+                           r.status === 'CONTACTED' ? '📞 Contacted' :
+                           r.status === 'CANCELLED' ? '❌ Cancelled' : '⏳ Pending'}
                         </span>
                       </td>
 
-                      {/* Follow-up / Appointment */}
+                      {/* Follow-up / Appointment & Notes */}
                       <td>
                         {r.scheduledDate ? (
                           <div style={{ color: '#3b82f6', fontWeight: 600, fontSize: 12 }}>
@@ -535,27 +623,52 @@ export default function RemindersPage() {
                           </div>
                         ) : null}
 
+                        {r.notes && (
+                          <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 2, background: 'var(--hover)', padding: '2px 6px', borderRadius: 4 }}>
+                            <span style={{ color: 'var(--color-gold-primary)', fontWeight: 600 }}>Note:</span> {r.notes}
+                          </div>
+                        )}
+
                         {r.latestFollowup ? (
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
                             <span style={{ fontWeight: 600 }}>{r.latestFollowup.channel}:</span> {r.latestFollowup.response}
-                            {r.latestFollowup.notes && (
-                              <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>"{r.latestFollowup.notes}"</div>
+                            {r.latestFollowup.notes && r.latestFollowup.notes !== r.notes && (
+                              <span style={{ color: 'var(--text-subtle)' }}> · "{r.latestFollowup.notes}"</span>
                             )}
                           </div>
-                        ) : (
-                          <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>No calls logged yet</span>
-                        )}
+                        ) : (!r.notes && (
+                          <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>No calls or notes logged yet</span>
+                        ))}
                       </td>
 
                       {/* Actions */}
                       <td style={{ textAlign: 'center' }}>
-                        <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                        <div style={{ display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {r.status !== 'COMPLETED' && (
+                            <button
+                              className="btn btn-xs"
+                              style={{ background: '#10b981', color: '#fff', borderColor: '#10b981', gap: 4 }}
+                              onClick={() => handleOpenCompleteModal(r)}
+                              title="Mark this maintenance task as Done"
+                            >
+                              <CheckCircle2 size={12} /> Done
+                            </button>
+                          )}
+                          <button
+                            className="btn btn-secondary btn-xs"
+                            style={{ color: '#3b82f6', borderColor: '#3b82f6', gap: 4 }}
+                            onClick={() => handleOpenRescheduleModal(r)}
+                            title="Re-schedule Checkup Date"
+                          >
+                            <Calendar size={12} /> Re-schedule
+                          </button>
                           <button
                             className="btn btn-primary btn-xs"
                             onClick={() => handleOpenFollowup(r)}
                             style={{ gap: 4 }}
+                            title="Log Call / Contact Customer"
                           >
-                            <PhoneCall size={12} /> Log Call
+                            <PhoneCall size={12} /> Call
                           </button>
                           {r.followups && r.followups.length > 0 && (
                             <button
@@ -584,6 +697,120 @@ export default function RemindersPage() {
           </div>
         )}
       </div>
+
+      {/* ── MARK AS DONE (COMPLETED) MODAL ── */}
+      {completeModalReminder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+        }}>
+          <div className="card" style={{ maxWidth: 480, width: '100%', padding: 24, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#10b981', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CheckCircle2 size={20} /> Mark Maintenance as Done
+                </h2>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {completeModalReminder.customer?.name} · {completeModalReminder.vehicle?.registration} ({completeModalReminder.intervalLabel})
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setCompleteModalReminder(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmComplete}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-group">
+                  <label className="form-label required">Completion Notes / Work Carried Out</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder="e.g. Customer brought vehicle in today. Completed 3-week wash, hydrophobic check performed, coating in excellent condition."
+                    value={completeNotes}
+                    onChange={e => setCompleteNotes(e.target.value)}
+                    required
+                  />
+                  <span className="form-hint">Record what inspection or work was completed for this vehicle</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setCompleteModalReminder(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ background: '#10b981', borderColor: '#10b981' }} disabled={updateMut.isPending}>
+                  {updateMut.isPending ? 'Updating...' : 'Confirm Completed (Done)'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── RE-SCHEDULE MODAL ── */}
+      {rescheduleModalReminder && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
+        }}>
+          <div className="card" style={{ maxWidth: 480, width: '100%', padding: 24, boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: '#3b82f6', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Calendar size={20} /> Re-schedule Maintenance Checkup
+                </h2>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+                  {rescheduleModalReminder.customer?.name} · {rescheduleModalReminder.vehicle?.registration} ({rescheduleModalReminder.intervalLabel})
+                </div>
+              </div>
+              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setRescheduleModalReminder(null)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmReschedule}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="form-group">
+                  <label className="form-label required">New Target / Appointment Date</label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={rescheduleDate}
+                    onChange={e => setRescheduleDate(e.target.value)}
+                    required
+                  />
+                  <span className="form-hint">Select the new agreed checkup date with the customer</span>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label required">Reason for Re-scheduling / Customer Note</label>
+                  <textarea
+                    className="form-input"
+                    rows={3}
+                    placeholder="e.g. Customer requested postponement by 2 weeks because they are travelling abroad."
+                    value={rescheduleNotes}
+                    onChange={e => setRescheduleNotes(e.target.value)}
+                    required
+                  />
+                  <span className="form-hint">Reason or remarks for changing the appointment</span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 20 }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setRescheduleModalReminder(null)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary" style={{ background: '#3b82f6', borderColor: '#3b82f6' }} disabled={updateMut.isPending}>
+                  {updateMut.isPending ? 'Updating...' : 'Save Re-schedule'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── LOG CALL / FOLLOW-UP MODAL ── */}
       {followupReminder && (

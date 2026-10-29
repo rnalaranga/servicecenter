@@ -52,11 +52,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(receivedUser)
     } catch (err: any) {
       // Fallback for demo logins if network or backend proxy encounters an issue
-      if (cleanUser === 'admin' && cleanPass === 'admin@golden123') {
+      if (cleanUser === 'admin' && (cleanPass === 'admin@autoelevate123' || cleanPass === 'admin@golden123')) {
         const mockUser: User = {
           id: 1,
           username: 'admin',
-          email: 'admin@goldendetail.lk',
+          email: 'admin@autoelevate.lk',
           fullName: 'System Administrator',
           role: 'ADMIN',
         }
@@ -67,11 +67,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(mockUser)
         return
       }
-      if (cleanUser === 'advisor' && cleanPass === 'advisor@golden123') {
+      if (cleanUser === 'advisor' && (cleanPass === 'advisor@autoelevate123' || cleanPass === 'advisor@golden123')) {
         const mockUser: User = {
           id: 2,
           username: 'advisor',
-          email: 'advisor@goldendetail.lk',
+          email: 'advisor@autoelevate.lk',
           fullName: 'Service Advisor',
           role: 'SERVICE_ADVISOR',
         }

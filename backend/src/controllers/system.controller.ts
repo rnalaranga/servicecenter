@@ -118,7 +118,7 @@ export const downloadLatestBackup = async (req: Request, res: Response) => {
     }
 
     const dateStr = new Date().toISOString().split('T')[0];
-    res.download(dbPath, `golden_erp_backup_${dateStr}.db`);
+    res.download(dbPath, `auto_elevate_backup_${dateStr}.db`);
   } catch (error: any) {
     console.error('Download backup error:', error);
     res.status(500).json({ error: 'Failed to download backup' });
@@ -204,7 +204,7 @@ export const fixDatabase = async (req: Request, res: Response) => {
 
         // 3. Ensure Default Settings exist if not set
         const defaultSettings = [
-          { key: 'companyName', value: 'Auto Elevate - Golden Auto Detail', group: 'GENERAL' },
+          { key: 'companyName', value: 'AUTO ELEVATE ERP', group: 'GENERAL' },
           { key: 'companyPhone', value: '+94 77 123 4567', group: 'GENERAL' },
           { key: 'companyEmail', value: 'info@autoelevate.lk', group: 'GENERAL' },
           { key: 'companyAddress', value: 'No. 4, Thudella, Ja-Ela, Sri Lanka', group: 'GENERAL' },

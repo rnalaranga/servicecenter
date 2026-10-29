@@ -109,7 +109,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     queryFn: getSettings 
   })
   
-  const companyName = settings?.companyName || 'Golden Auto Detail'
+  const companyName = settings?.companyName || 'AUTO ELEVATE'
 
   const activeNavGroups = isAdvisor
     ? [
@@ -215,7 +215,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             textAlign: 'center',
             letterSpacing: '0.03em'
           }}>
-            v1.0.0 · {companyName} ERP
+            v1.0.0 · {companyName.includes('ERP') ? companyName : `${companyName} ERP`}
           </div>
         </div>
       </aside>

@@ -5,7 +5,7 @@ async function checkVersion() {
     host: 'localhost',
     user: 'root',
     password: '1234',
-    database: 'golden_auto_detail'
+    database: 'auto_elevate_erp'
   });
   const [rows] = await connection.execute('SELECT VERSION() as version');
   console.log(rows);

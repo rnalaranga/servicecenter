@@ -65,7 +65,7 @@ async function main() {
       recordId: 1,
       recordRef: 'Company Name',
       oldValue: JSON.stringify({ value: 'Auto Detail' }),
-      newValue: JSON.stringify({ value: 'Golden Auto Detail ERP' }),
+      newValue: JSON.stringify({ value: 'AUTO ELEVATE ERP' }),
       ipAddress: '127.0.0.1',
       userAgent: 'System Backend'
     }
