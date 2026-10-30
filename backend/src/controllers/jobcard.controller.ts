@@ -15,6 +15,9 @@ export const getJobCards = async (req: Request, res: Response) => {
         vehicle: true,
         services: {
           include: { service: true }
+        },
+        invoices: {
+          include: { invoice: true }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -37,7 +40,8 @@ export const getJobCardById = async (req: Request, res: Response) => {
         materials: { include: { product: true } },
         technician: true,
         inspections: true,
-        purchases: { include: { vendor: true, items: true, payments: true } }
+        purchases: { include: { vendor: true, items: true, payments: true } },
+        invoices: { include: { invoice: true } }
       }
     });
 

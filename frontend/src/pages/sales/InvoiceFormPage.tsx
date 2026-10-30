@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Save, FileText, Plus, Trash2, AlertCircle, X, Check, Search, Car, User, Building2, Landmark, Loader2, Bell, Calendar, Clock, Sparkles } from 'lucide-react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { createDirectInvoice } from '@/api/invoices'
+import { getJobCardById } from '@/api/jobcards'
 import { getCustomers, createCustomer, type Customer } from '@/api/customers'
 import { getVehicles, getVehiclesByCustomerId, createVehicle, updateVehicle, type Vehicle } from '@/api/vehicles'
 import { getProducts } from '@/api/products'
@@ -133,11 +134,24 @@ export default function InvoiceFormPage() {
     notes: string;
   }>>([])
 
-  const calcFutureDate = (days?: number, months?: number) => {
+  // Custom Interval & Milestone Builder
+  const [customValue, setCustomValue] = useState<number | ''>(1)
+  const [customUnit, setCustomUnit] = useState<'DAYS' | 'WEEKS' | 'MONTHS' | 'YEARS'>('WEEKS')
+  const [customMilestoneName, setCustomMilestoneName] = useState('')
+  const [customExactDate, setCustomExactDate] = useState('')
+
+  const calcFutureDate = (days?: number, months?: number, weeks?: number, years?: number) => {
     const d = new Date()
-    if (days) d.setDate(d.getDate() + days)
-    if (months) d.setMonth(d.getMonth() + months)
-    return d.toISOString().split('T')[0]
+    const totalDays = (days || 0) + (weeks ? weeks * 7 : 0)
+    const totalMonths = (months || 0) + (years ? years * 12 : 0)
+
+    if (totalMonths) d.setMonth(d.getMonth() + totalMonths)
+    if (totalDays) d.setDate(d.getDate() + totalDays)
+
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   }
 
   const applyPreset = (presetKey: string) => {
@@ -185,22 +199,67 @@ export default function InvoiceFormPage() {
     }
   }
 
-  const addCustomInterval = (label: string, days?: number, months?: number) => {
+  const addCustomInterval = (
+    label: string, 
+    days?: number, 
+    months?: number, 
+    weeks?: number, 
+    years?: number, 
+    exactDate?: string,
+    customServiceName?: string
+  ) => {
     setEnableMaintenanceSchedule(true)
     const activeService = maintenanceServiceName || items.find(i => i.description.trim())?.description || 'Periodic Maintenance'
     if (!maintenanceServiceName) setMaintenanceServiceName(activeService)
 
-    const dateStr = calcFutureDate(days, months)
+    const dateStr = exactDate || calcFutureDate(days, months, weeks, years)
     setScheduleIntervals(prev => [
       ...prev,
       {
         id: 'ms_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
         intervalLabel: label,
         reminderDate: dateStr,
-        serviceName: `${activeService} - ${label} Checkup`,
+        serviceName: customServiceName || `${activeService} - ${label} Inspection`,
         notes: ''
       }
     ])
+  }
+
+  const handleAddCustomMilestone = () => {
+    const val = Number(customValue)
+    if (!val || val <= 0) return
+
+    let days: number | undefined
+    let weeks: number | undefined
+    let months: number | undefined
+    let years: number | undefined
+    let defaultLabel = `${val} ${customUnit.toLowerCase()}`
+
+    if (customUnit === 'DAYS') {
+      days = val
+      defaultLabel = `${val} Day${val > 1 ? 's' : ''}`
+    } else if (customUnit === 'WEEKS') {
+      weeks = val
+      defaultLabel = `${val} Week${val > 1 ? 's' : ''}`
+    } else if (customUnit === 'MONTHS') {
+      months = val
+      defaultLabel = `${val} Month${val > 1 ? 's' : ''}`
+    } else if (customUnit === 'YEARS') {
+      years = val
+      defaultLabel = `${val} Year${val > 1 ? 's' : ''}`
+    }
+
+    const finalLabel = customMilestoneName.trim() || defaultLabel
+    addCustomInterval(finalLabel, days, months, weeks, years)
+    setCustomMilestoneName('')
+  }
+
+  const handleAddExactDate = () => {
+    if (!customExactDate) return
+    const finalLabel = customMilestoneName.trim() || 'Custom Milestone'
+    addCustomInterval(finalLabel, undefined, undefined, undefined, undefined, customExactDate)
+    setCustomMilestoneName('')
+    setCustomExactDate('')
   }
 
   const updateInterval = (id: string, field: string, val: string) => {
@@ -224,6 +283,13 @@ export default function InvoiceFormPage() {
     queryFn: () => getVehiclesByCustomerId(customerId),
     enabled: !!customerId
   })
+
+  // Auto-select customer vehicle if only one exists or none selected yet
+  useEffect(() => {
+    if (customerVehicles.length > 0 && !vehicleId) {
+      setVehicleId(String(customerVehicles[0].id))
+    }
+  }, [customerVehicles, vehicleId])
 
   const selectedCustomer = customers.find(c => String(c.id) === customerId)
 
@@ -980,71 +1046,181 @@ export default function InvoiceFormPage() {
                   </div>
                 </div>
 
-                {/* Quick Add Custom Random Interval Chips */}
+                {/* Flexible Milestone Interval Controls */}
                 <div style={{
                   background: 'var(--bg)',
-                  padding: '10px 14px',
+                  padding: '12px 16px',
                   borderRadius: 8,
-                  border: '1px dashed var(--border)',
+                  border: '1px dashed var(--color-gold-primary)',
                   marginBottom: 16,
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: 10
+                  flexDirection: 'column',
+                  gap: 12
                 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-                    + Add Flexible Interval:
+                  {/* 1-Click Quick Interval Chips */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>⚡ 1-Click Common Intervals:</span>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ fontWeight: 700, borderColor: 'var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
+                        onClick={() => addCustomInterval('1 Week', 7)}
+                        title="Add 1-Week (7 days) initial wash / hydrophobic inspection"
+                      >
+                        + 1 Week
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ fontWeight: 700, borderColor: 'var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
+                        onClick={() => addCustomInterval('2 Weeks', 14)}
+                        title="Add 2-Weeks (14 days) follow-up wash / check"
+                      >
+                        + 2 Weeks
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ fontWeight: 600 }}
+                        onClick={() => addCustomInterval('3 Weeks', 21)}
+                        title="Add 3-Weeks (21 days) inspection"
+                      >
+                        + 3 Weeks
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ fontWeight: 600 }}
+                        onClick={() => addCustomInterval('4 Weeks', 28)}
+                        title="Add 4-Weeks (28 days) checkup"
+                      >
+                        + 4 Weeks
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ fontWeight: 600 }}
+                        onClick={() => addCustomInterval('6 Weeks', 42)}
+                        title="Add 6-Weeks (42 days) checkup"
+                      >
+                        + 6 Weeks
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                        onClick={() => addCustomInterval('2 Months', undefined, 2)}
+                      >
+                        + 2 Months
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                        onClick={() => addCustomInterval('3 Months', undefined, 3)}
+                      >
+                        + 3 Months
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                        onClick={() => addCustomInterval('6 Months', undefined, 6)}
+                      >
+                        + 6 Months
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
+                        onClick={() => addCustomInterval('1 Year', undefined, 12)}
+                      >
+                        + 1 Year
+                      </button>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                      onClick={() => addCustomInterval('3 Weeks', 21)}
-                    >
-                      + 3 Weeks
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                      onClick={() => addCustomInterval('6 Weeks', 42)}
-                    >
-                      + 6 Weeks
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                      onClick={() => addCustomInterval('3 Months', undefined, 3)}
-                    >
-                      + 3 Months
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                      onClick={() => addCustomInterval('6 Months', undefined, 6)}
-                    >
-                      + 6 Months
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}
-                      onClick={() => addCustomInterval('1 Year', undefined, 12)}
-                    >
-                      + 1 Year
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-xs"
-                      style={{ background: 'var(--surface)', border: '1px solid var(--color-gold-primary)', color: 'var(--color-gold-primary)' }}
-                      onClick={() => addCustomInterval('Custom Checkup', 30)}
-                    >
-                      + Custom Date
-                    </button>
+
+                  {/* Custom Interval Builder & Exact Date Picker */}
+                  <div style={{
+                    paddingTop: 10,
+                    borderTop: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12
+                  }}>
+                    {/* Custom Number + Unit Form */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
+                        Custom Interval:
+                      </span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="365"
+                        style={{ width: 65, textAlign: 'center', padding: '4px 6px', fontSize: 12 }}
+                        className="form-input"
+                        value={customValue}
+                        onChange={e => setCustomValue(e.target.value ? Number(e.target.value) : '')}
+                        placeholder="Qty"
+                      />
+                      <select
+                        className="form-select"
+                        style={{ width: 105, padding: '4px 8px', fontSize: 12 }}
+                        value={customUnit}
+                        onChange={e => setCustomUnit(e.target.value as any)}
+                      >
+                        <option value="DAYS">Day(s)</option>
+                        <option value="WEEKS">Week(s)</option>
+                        <option value="MONTHS">Month(s)</option>
+                        <option value="YEARS">Year(s)</option>
+                      </select>
+                      <input
+                        type="text"
+                        className="form-input"
+                        style={{ width: 160, padding: '4px 8px', fontSize: 12 }}
+                        placeholder="Milestone label (optional)"
+                        value={customMilestoneName}
+                        onChange={e => setCustomMilestoneName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddCustomMilestone(); } }}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-primary btn-xs"
+                        style={{ gap: 4 }}
+                        onClick={handleAddCustomMilestone}
+                        disabled={!customValue}
+                      >
+                        <Plus size={12} /> Add Custom
+                      </button>
+                    </div>
+
+                    {/* Exact Date Picker */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>
+                        Or Exact Date:
+                      </span>
+                      <input
+                        type="date"
+                        className="form-input"
+                        style={{ width: 135, padding: '4px 8px', fontSize: 12 }}
+                        value={customExactDate}
+                        onChange={e => setCustomExactDate(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-xs"
+                        style={{ gap: 4 }}
+                        onClick={handleAddExactDate}
+                        disabled={!customExactDate}
+                      >
+                        <Plus size={12} /> Add Date
+                      </button>
+                    </div>
                   </div>
                 </div>
 

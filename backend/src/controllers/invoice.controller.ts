@@ -286,6 +286,7 @@ export const createInvoiceFromJobCard = async (req: Request, res: Response) => {
 };
 
 const directInvoiceSchema = z.object({
+  jobCardId: z.number().optional().nullable(),
   customerId: z.number().min(1, 'Please select a valid customer'),
   vehicleId: z.number().optional().nullable(),
   notes: z.string().optional().nullable(),
@@ -375,9 +376,25 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
           isQuotation,
           items: {
             create: invoiceItems
-          }
+          },
+          ...(data.jobCardId ? {
+            jobCards: {
+              create: { jobCardId: Number(data.jobCardId) }
+            }
+          } : {})
         }
       });
+
+      // If invoiced from Job Card, update job card status
+      if (data.jobCardId && !isQuotation) {
+        await tx.jobCard.update({
+          where: { id: Number(data.jobCardId) },
+          data: {
+            status: 'DELIVERED',
+            deliveredAt: new Date()
+          }
+        }).catch(() => {});
+      }
 
       // 2. Only post to Customer Ledger if it is an actual Invoice (Quotations are non-binding estimates)
       if (!isQuotation) {
@@ -449,13 +466,14 @@ export const createDirectInvoice = async (req: Request, res: Response) => {
           for (const item of data.maintenanceSchedule.intervals) {
             await tx.maintenanceReminder.create({
               data: {
+                jobCardId: data.jobCardId ? Number(data.jobCardId) : undefined,
                 customerId: data.customerId,
                 vehicleId: targetVehId,
                 serviceName: item.serviceName || data.maintenanceSchedule.serviceName || invoiceItems[0]?.description || 'Periodic Maintenance',
                 reminderDate: new Date(item.reminderDate),
                 intervalLabel: item.intervalLabel || 'Scheduled Checkup',
                 status: 'PENDING',
-                notes: item.notes || `Scheduled upon Invoice ${invoiceNumber}`
+                notes: item.notes || `Scheduled upon Invoice ${invoiceNumber}${data.jobCardId ? ` (Job Card #${data.jobCardId})` : ''}`
               }
             });
           }

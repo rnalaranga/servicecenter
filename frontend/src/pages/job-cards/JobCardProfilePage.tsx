@@ -34,99 +34,6 @@ export default function JobCardProfilePage() {
   const [extDesc, setExtDesc] = useState('')
   const [extAmount, setExtAmount] = useState('')
 
-  // Generate Invoice Modal with Maintenance Scheduler
-  const [showGenerateInvoiceModal, setShowGenerateInvoiceModal] = useState(false)
-  const [invScheduleServiceName, setInvScheduleServiceName] = useState('')
-  const [invScheduleIntervals, setInvScheduleIntervals] = useState<Array<{
-    id: string;
-    intervalLabel: string;
-    reminderDate: string;
-    serviceName: string;
-    notes: string;
-  }>>([])
-
-  const calcFutureDate = (days?: number, months?: number) => {
-    const d = new Date()
-    if (days) d.setDate(d.getDate() + days)
-    if (months) d.setMonth(d.getMonth() + months)
-    return d.toISOString().split('T')[0]
-  }
-
-  const applyInvPreset = (presetKey: string) => {
-    const activeService = invScheduleServiceName || job?.services?.[0]?.service?.name || 'Periodic Coating Maintenance'
-    setInvScheduleServiceName(activeService)
-
-    if (presetKey === '3W_6M_1Y') {
-      setInvScheduleIntervals([
-        { id: 'ms_' + Date.now() + '_1', intervalLabel: '3 Weeks', reminderDate: calcFutureDate(21), serviceName: `${activeService} - 3-Week Initial Inspection & Wash`, notes: 'Hydrophobic check & initial wash' },
-        { id: 'ms_' + Date.now() + '_2', intervalLabel: '6 Months', reminderDate: calcFutureDate(undefined, 6), serviceName: `${activeService} - 6-Month Booster & Decon Wash`, notes: 'Chemical decontamination & booster top-up' },
-        { id: 'ms_' + Date.now() + '_3', intervalLabel: '1 Year', reminderDate: calcFutureDate(undefined, 12), serviceName: `${activeService} - 1-Year Annual Inspection & Re-boost`, notes: 'Annual warranty inspection & gloss check' },
-      ])
-    } else if (presetKey === '2YR') {
-      setInvScheduleIntervals([
-        { id: 'ms_' + Date.now() + '_1', intervalLabel: '3 Weeks', reminderDate: calcFutureDate(21), serviceName: `${activeService} - 3-Week Initial Inspection & Wash`, notes: 'Initial wash' },
-        { id: 'ms_' + Date.now() + '_2', intervalLabel: '6 Months', reminderDate: calcFutureDate(undefined, 6), serviceName: `${activeService} - 6-Month Booster`, notes: 'Booster wash' },
-        { id: 'ms_' + Date.now() + '_3', intervalLabel: '1 Year', reminderDate: calcFutureDate(undefined, 12), serviceName: `${activeService} - 1-Year Annual Inspection`, notes: '1st Year check' },
-        { id: 'ms_' + Date.now() + '_4', intervalLabel: '18 Months', reminderDate: calcFutureDate(undefined, 18), serviceName: `${activeService} - 18-Month Maintenance Inspection`, notes: 'Mid-year check' },
-        { id: 'ms_' + Date.now() + '_5', intervalLabel: '2 Years', reminderDate: calcFutureDate(undefined, 24), serviceName: `${activeService} - 2-Year Final Inspection`, notes: '2nd Year inspection' },
-      ])
-    } else if (presetKey === '3YR') {
-      setInvScheduleIntervals([
-        { id: 'ms_' + Date.now() + '_1', intervalLabel: '3 Weeks', reminderDate: calcFutureDate(21), serviceName: `${activeService} - 3-Week Initial Inspection`, notes: '3-week check' },
-        { id: 'ms_' + Date.now() + '_2', intervalLabel: '6 Months', reminderDate: calcFutureDate(undefined, 6), serviceName: `${activeService} - 6-Month Booster`, notes: '6-month booster' },
-        { id: 'ms_' + Date.now() + '_3', intervalLabel: '1 Year', reminderDate: calcFutureDate(undefined, 12), serviceName: `${activeService} - 1-Year Service`, notes: '1-year check' },
-        { id: 'ms_' + Date.now() + '_4', intervalLabel: '2 Years', reminderDate: calcFutureDate(undefined, 24), serviceName: `${activeService} - 2-Year Annual Re-boost`, notes: 'Annual check' },
-        { id: 'ms_' + Date.now() + '_5', intervalLabel: '3 Years', reminderDate: calcFutureDate(undefined, 36), serviceName: `${activeService} - 3-Year Final Inspection`, notes: 'Final inspection' },
-      ])
-    } else if (presetKey === 'GENERAL') {
-      setInvScheduleIntervals([
-        { id: 'ms_' + Date.now() + '_1', intervalLabel: '3 Months', reminderDate: calcFutureDate(undefined, 3), serviceName: `${activeService} - 3-Month Fluid & Filter Check`, notes: '3-month check' },
-        { id: 'ms_' + Date.now() + '_2', intervalLabel: '6 Months', reminderDate: calcFutureDate(undefined, 6), serviceName: `${activeService} - 6-Month General Maintenance`, notes: '6-month service' },
-      ])
-    }
-  }
-
-  const addInvCustomInterval = (label: string, days?: number, months?: number) => {
-    const activeService = invScheduleServiceName || job?.services?.[0]?.service?.name || 'Periodic Maintenance'
-    if (!invScheduleServiceName) setInvScheduleServiceName(activeService)
-    const dateStr = calcFutureDate(days, months)
-    setInvScheduleIntervals(prev => [
-      ...prev,
-      {
-        id: 'ms_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-        intervalLabel: label,
-        reminderDate: dateStr,
-        serviceName: `${activeService} - ${label} Checkup`,
-        notes: ''
-      }
-    ])
-  }
-
-  const updateInvInterval = (id: string, field: string, val: string) => {
-    setInvScheduleIntervals(prev => prev.map(item => item.id === id ? { ...item, [field]: val } : item))
-  }
-
-  const removeInvInterval = (id: string) => {
-    setInvScheduleIntervals(prev => prev.filter(item => item.id !== id))
-  }
-
-  const handleConfirmGenerateInvoice = (withSchedule: boolean) => {
-    const maintenanceSchedulePayload = withSchedule && invScheduleIntervals.length > 0 ? {
-      serviceName: invScheduleServiceName.trim() || job?.services?.[0]?.service?.name || 'Periodic Maintenance',
-      intervals: invScheduleIntervals.map(i => ({
-        intervalLabel: i.intervalLabel.trim(),
-        reminderDate: i.reminderDate,
-        serviceName: i.serviceName.trim() || undefined,
-        notes: i.notes.trim() || undefined
-      }))
-    } : null
-
-    invMut.mutate({
-      jobCardId: id!,
-      maintenanceSchedule: maintenanceSchedulePayload
-    })
-  }
-
   const { data: job, isLoading } = useQuery({
     queryKey: ['jobcards', id],
     queryFn: () => getJobCardById(id!)
@@ -155,16 +62,6 @@ export default function JobCardProfilePage() {
       success('Status Updated', 'Job card status has been updated.')
     },
     onError: () => error('Update Failed', 'Could not update status.')
-  })
-
-  const invMut = useMutation({
-    mutationFn: generateInvoiceFromJobCard,
-    onSuccess: (inv) => {
-      queryClient.invalidateQueries({ queryKey: ['jobcards', id] })
-      success('Invoice Generated', `Invoice ${inv.invoiceNumber} has been created.`)
-      navigate(`/invoices/${inv.id}`)
-    },
-    onError: (err: any) => error('Generation Failed', err.response?.data?.error || 'Could not generate invoice.')
   })
 
   const addServiceMut = useMutation({
@@ -273,22 +170,25 @@ export default function JobCardProfilePage() {
           </button>
         )}
 
-        {!isAdvisor && job.status === 'COMPLETED' && (!job.invoices || job.invoices.length === 0) && (
+        {!isAdvisor && (!job.invoices || job.invoices.length === 0) && (
           <button
             className="btn btn-primary btn-sm"
-            onClick={() => {
-              applyInvPreset('3W_6M_1Y')
-              setShowGenerateInvoiceModal(true)
-            }}
-            disabled={invMut.isPending}
+            onClick={() => navigate(`/invoices/new?jobCardId=${job.id}`)}
             style={{ gap: 6 }}
           >
-            <FileText size={14} /> {invMut.isPending ? 'Generating...' : 'Generate Invoice'}
+            <FileText size={14} /> Generate Invoice
           </button>
         )}
         {!isAdvisor && job.invoices && job.invoices.length > 0 && (
-          <button className="btn btn-primary btn-sm" onClick={() => navigate(`/invoices/${job.invoices![0].id}`)}>
-            View Invoice
+          <button 
+            className="btn btn-primary btn-sm" 
+            onClick={() => {
+              const invId = job.invoices![0].invoiceId || job.invoices![0].invoice?.id || job.invoices![0].id
+              navigate(`/invoices/${invId}`)
+            }}
+            style={{ gap: 6 }}
+          >
+            <FileText size={14} /> View Invoice
           </button>
         )}
 
@@ -676,177 +576,6 @@ export default function JobCardProfilePage() {
 
         </div>
       </div>
-
-      {/* ── GENERATE INVOICE & MAINTENANCE SCHEDULE MODAL ── */}
-      {showGenerateInvoiceModal && (
-        <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20
-        }}>
-          <div className="card" style={{ maxWidth: 700, width: '100%', maxHeight: '90vh', overflowY: 'auto', padding: 24, boxShadow: '0 10px 25px rgba(0,0,0,0.3)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-              <div>
-                <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <FileText size={20} style={{ color: 'var(--color-gold-primary)' }} />
-                  Generate Invoice & Schedule Maintenance
-                </h2>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-                  {job.jobNumber} · {job.customer?.name} · {job.vehicle?.registration} ({job.vehicle?.make} {job.vehicle?.model})
-                </div>
-              </div>
-              <button className="btn btn-ghost btn-icon btn-sm" onClick={() => setShowGenerateInvoiceModal(false)}>
-                <X size={16} />
-              </button>
-            </div>
-
-            <div style={{
-              background: 'rgba(212, 175, 55, 0.05)',
-              border: '1.5px solid var(--color-gold-primary)',
-              borderRadius: 8,
-              padding: 16,
-              marginBottom: 16
-            }}>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Bell size={16} style={{ color: 'var(--color-gold-primary)' }} />
-                Periodic Maintenance & Coating Warranty Schedule
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-                Set up automated follow-up checkups (e.g. 3 Weeks, 6 Weeks, 3 Months, 6 Months, 1 Year). They will be created in the Reminders system automatically.
-              </div>
-
-              {/* Service description */}
-              <div style={{ marginBottom: 12 }}>
-                <label className="form-label" style={{ fontSize: 11, marginBottom: 4 }}>Service / Job Name for Reminders</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  style={{ fontSize: 12 }}
-                  value={invScheduleServiceName}
-                  onChange={e => setInvScheduleServiceName(e.target.value)}
-                  placeholder="e.g. Ceramic Coating 9H Warranty Service"
-                />
-              </div>
-
-              {/* Presets */}
-              <div style={{ marginBottom: 12 }}>
-                <label className="form-label" style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Quick Presets:</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => applyInvPreset('3W_6M_1Y')}>
-                    ⚡ 3W + 6M + 1Y
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => applyInvPreset('2YR')}>
-                    2-Year Coating
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => applyInvPreset('3YR')}>
-                    3-Year Coating
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => applyInvPreset('5YR')}>
-                    5-Year Coating
-                  </button>
-                  <button type="button" className="btn btn-secondary btn-xs" onClick={() => applyInvPreset('GENERAL')}>
-                    General (3M + 6M)
-                  </button>
-                </div>
-              </div>
-
-              {/* Single Interval Chips */}
-              <div style={{
-                background: 'var(--bg)',
-                padding: '8px 12px',
-                borderRadius: 6,
-                border: '1px dashed var(--border)',
-                marginBottom: 12,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: 8
-              }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)' }}>+ Add Interval:</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  <button type="button" className="btn btn-ghost btn-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={() => addInvCustomInterval('3 Weeks', 21)}>+ 3 Weeks</button>
-                  <button type="button" className="btn btn-ghost btn-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={() => addInvCustomInterval('6 Weeks', 42)}>+ 6 Weeks</button>
-                  <button type="button" className="btn btn-ghost btn-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={() => addInvCustomInterval('3 Months', undefined, 3)}>+ 3 Months</button>
-                  <button type="button" className="btn btn-ghost btn-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={() => addInvCustomInterval('6 Months', undefined, 6)}>+ 6 Months</button>
-                  <button type="button" className="btn btn-ghost btn-xs" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }} onClick={() => addInvCustomInterval('1 Year', undefined, 12)}>+ 1 Year</button>
-                </div>
-              </div>
-
-              {/* Milestones List */}
-              {invScheduleIntervals.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '16px', background: 'var(--bg)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                  No maintenance reminders scheduled. You can generate the invoice without reminders or click a preset above.
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
-                  {invScheduleIntervals.map(item => (
-                    <div key={item.id} style={{ display: 'grid', gridTemplateColumns: '110px 130px 1fr 30px', gap: 8, alignItems: 'center', background: 'var(--surface)', padding: '6px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>
-                      <input
-                        type="text"
-                        className="form-input"
-                        style={{ fontSize: 11, padding: '4px 6px' }}
-                        value={item.intervalLabel}
-                        onChange={e => updateInvInterval(item.id, 'intervalLabel', e.target.value)}
-                        placeholder="Label"
-                      />
-                      <input
-                        type="date"
-                        className="form-input"
-                        style={{ fontSize: 11, padding: '4px 6px' }}
-                        value={item.reminderDate}
-                        onChange={e => updateInvInterval(item.id, 'reminderDate', e.target.value)}
-                      />
-                      <input
-                        type="text"
-                        className="form-input"
-                        style={{ fontSize: 11, padding: '4px 6px' }}
-                        value={item.serviceName}
-                        onChange={e => updateInvInterval(item.id, 'serviceName', e.target.value)}
-                        placeholder="Task description"
-                      />
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-icon btn-sm"
-                        style={{ color: 'var(--color-danger)' }}
-                        onClick={() => removeInvInterval(item.id)}
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setShowGenerateInvoiceModal(false)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-outline"
-                disabled={invMut.isPending}
-                onClick={() => handleConfirmGenerateInvoice(false)}
-              >
-                Invoice Only (No Reminders)
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={invMut.isPending}
-                onClick={() => handleConfirmGenerateInvoice(true)}
-              >
-                {invMut.isPending ? 'Generating...' : `Generate Invoice & Schedule (${invScheduleIntervals.length})`}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -36,6 +36,12 @@ const getMilestonePreview = (preset: string, baseDateStr: string, serviceName: s
   if (isNaN(base.getTime())) return []
 
   const presetsMap: Record<string, { days?: number; months?: number; label: string; desc: string }[]> = {
+    FOLLOWUP_1WK: [
+      { days: 7, label: '1 Week', desc: '1-Week Initial Follow-up & Hydrophobic Inspection' }
+    ],
+    FOLLOWUP_2WK: [
+      { days: 14, label: '2 Weeks', desc: '2-Weeks Follow-up Inspection & Wash' }
+    ],
     COATING_1YR: [
       { days: 21, label: '3 Weeks', desc: '3-Week Initial Inspection & Wash' },
       { months: 6, label: '6 Months', desc: '6-Month Booster & Decon Wash' },
@@ -124,7 +130,7 @@ export default function RemindersPage() {
   const [newCustomerId, setNewCustomerId] = useState<number>(0)
   const [newVehicleId, setNewVehicleId] = useState<number>(0)
   const [newServiceName, setNewServiceName] = useState('Ceramic Coating 9H Warranty')
-  const [newPreset, setNewPreset] = useState<'COATING_1YR' | 'COATING_2YR' | 'COATING_3YR' | 'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'SINGLE'>('COATING_1YR')
+  const [newPreset, setNewPreset] = useState<'FOLLOWUP_1WK' | 'FOLLOWUP_2WK' | 'COATING_1YR' | 'COATING_2YR' | 'COATING_3YR' | 'COATING_5YR' | 'GENERAL_MAINTENANCE' | 'SINGLE'>('COATING_1YR')
   const [newStartDate, setNewStartDate] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [newNotes, setNewNotes] = useState('')
 
@@ -1021,6 +1027,8 @@ export default function RemindersPage() {
                     value={newPreset}
                     onChange={e => setNewPreset(e.target.value as any)}
                   >
+                    <option value="FOLLOWUP_1WK">⚡ 1-Week Follow-up Check & Hydrophobic Wash</option>
+                    <option value="FOLLOWUP_2WK">⚡ 2-Weeks Follow-up Inspection & Wash</option>
                     <option value="COATING_1YR">🛡️ 1-Year Coating Warranty (3 Weeks, 6 Months, 1 Year)</option>
                     <option value="COATING_2YR">🛡️ 2-Year Coating Warranty (3 Weeks, 6 Months, 1 Yr, 18 Mo, 2 Yrs)</option>
                     <option value="COATING_3YR">🛡️ 3-Year Coating Warranty (3 Weeks, 6 Months, 1 Yr, 18 Mo, 2 Yrs, 30 Mo, 3 Yrs)</option>
@@ -1029,6 +1037,8 @@ export default function RemindersPage() {
                     <option value="SINGLE">🎯 Single One-Time Reminder</option>
                   </select>
                   <span className="form-hint" style={{ color: 'var(--color-gold-primary)' }}>
+                    {newPreset === 'FOLLOWUP_1WK' && '✨ Creates a reminder 1 week (7 days) after service completion.'}
+                    {newPreset === 'FOLLOWUP_2WK' && '✨ Creates a reminder 2 weeks (14 days) after service completion.'}
                     {newPreset === 'COATING_1YR' && '✨ Creates 3 milestones: 3-Week Initial Inspection, 6-Month Booster Wash, and 1-Year Annual Inspection.'}
                     {newPreset === 'COATING_2YR' && '✨ Creates 5 milestones: 3 Weeks, 6 Months, 1 Year, 18 Months, and 2 Years.'}
                     {newPreset === 'COATING_3YR' && '✨ Creates 7 milestones covering up to 3 Years.'}

@@ -95,9 +95,11 @@ export default function InvoiceProfilePage() {
 
   const targetVehicleId = invoice?.vehicleId || invoice?.vehicle?.id || invoice?.jobCards?.[0]?.jobCard?.vehicleId
   const { data: invoiceReminders = [] } = useQuery({
-    queryKey: ['reminders', 'vehicle', targetVehicleId],
-    queryFn: () => getReminders({ vehicleId: targetVehicleId }),
-    enabled: !!targetVehicleId
+    queryKey: ['reminders', 'vehicle', targetVehicleId, 'customer', invoice?.customerId],
+    queryFn: () => targetVehicleId
+      ? getReminders({ vehicleId: targetVehicleId })
+      : (invoice?.customerId ? getReminders({ customerId: invoice.customerId }) : Promise.resolve([])),
+    enabled: !!(targetVehicleId || invoice?.customerId)
   })
 
   const assignVehicleMut = useMutation({

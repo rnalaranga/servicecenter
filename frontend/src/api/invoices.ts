@@ -73,6 +73,7 @@ export interface MaintenanceSchedulePayload {
 }
 
 export const createDirectInvoice = async (payload: { 
+  jobCardId?: number | null;
   customerId: number;
   vehicleId?: number | null;
   notes?: string;

@@ -107,6 +107,8 @@ const createReminderSchema = z.object({
   serviceName: z.string().min(1, 'Service name is required'),
   preset: z.enum([
     'SINGLE',
+    'FOLLOWUP_1WK',
+    'FOLLOWUP_2WK',
     'COATING_1YR',
     'COATING_2YR',
     'COATING_3YR',
@@ -131,6 +133,12 @@ export const createReminderSchedule = async (req: Request, res: Response) => {
     const baseDate = data.startDate ? new Date(data.startDate) : new Date();
 
     const presetsMap: Record<string, { days?: number; months?: number; label: string; desc: string }[]> = {
+      FOLLOWUP_1WK: [
+        { days: 7, label: '1 Week', desc: `${data.serviceName} - 1-Week Initial Check & Hydrophobic Wash` }
+      ],
+      FOLLOWUP_2WK: [
+        { days: 14, label: '2 Weeks', desc: `${data.serviceName} - 2-Weeks Follow-up Inspection & Wash` }
+      ],
       COATING_1YR: [
         { days: 21, label: '3 Weeks', desc: `${data.serviceName} - 3-Week Initial Inspection & Wash` },
         { months: 6, label: '6 Months', desc: `${data.serviceName} - 6-Month Booster & Decon Wash` },
